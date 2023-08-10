@@ -3,12 +3,13 @@
 
 #include <iostream>
 #include <memory>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 
 
 Scene::Scene() {
-	std::cout << this << std::endl;
-	objects.push_back(new Plane(0, this, .3f, .3f, 0.0f, 0.0f, {1.0f, 0.0f, 0.0f}));
-	objects.push_back(new Plane(1, this, .3f, .3f, 0.5f, 0.0f, {0.0f, 1.0f, 0.0f}));
+	add_object(new Plane(0, this, .3f, .3f, 0.0f, 0.0f, { 1.0f, 0.0f, 0.0f }));
+	add_object(new Plane(1, this, .3f, .3f, 0.5f, 0.0f, { 0.0f, 1.0f, 0.0f }));
 }
 
 void Scene::add_object(Object* object_ptr) {
@@ -33,6 +34,7 @@ Object* Scene::get_object_ptr(uint8_t object_id) {
 	for (auto object : objects) {
 		if (object->get_id() == object_id) return object;
 	}
+	return nullptr;
 }
 
 std::vector<Object*>* Scene::get_objects() {
@@ -66,8 +68,26 @@ bool Scene::point_inside_triangle(Point point, std::vector<Point> triangle) {
 
 // assuming viewport normalized on y axis and camera looking at 0,0
 void Scene::cursor_position_callback(int xpos, int ypos) {
-	world_curson_pos_x = ((float)xpos / window_width -0.5f) * window_width / window_height;
-	world_curson_pos_y = -((float)ypos / window_height -0.5f);
+	// Transform NDC to camera-space coordinate
+	// inverse view transformation not needed since camera is fixed
+
+	// make cursor coordinates from -1 to +1
+	float ndc_x = ((float)xpos / window_width) * 2.f - 1.f;
+	float ndc_y = - ((float)ypos / window_height) * 2.f + 1.f;
+
+	// inverse of projection matrix
+	glm::vec4 clip_coords = { ndc_x, ndc_y, -1.0f, 1.0f };
+	glm::mat4 proj = glm::perspective(glm::radians(60.0f), window_width / (float)window_height, 0.1f, 10.0f);
+	glm::mat4 proj_inv = glm::inverse(proj);
+	glm::vec4 camera_coords = proj_inv * clip_coords;
+	glm::mat4 view_inv = glm::inverse(glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+	glm::vec4 ray_world = glm::normalize(camera_coords * view_inv);
+
+	float t = -1 / ray_world.z;
+	float x_at_z_zero = ray_world.x * t;
+	float y_at_z_zero = ray_world.y * t;
+
+	//std::cout << x_at_z_zero << " " << y_at_z_zero << std::endl;
 
 	// check if cursor is hovering an object
 	int new_hovering_obj_id = -1; // reset
@@ -87,7 +107,7 @@ void Scene::cursor_position_callback(int xpos, int ypos) {
 
 			// Cursor is hovering obj
 			if (point_inside_triangle(
-				Point({ world_curson_pos_x, world_curson_pos_y }),
+				Point({ x_at_z_zero, y_at_z_zero }),
 				triangle
 			)) {
 				// invoke object hover enter event
@@ -102,8 +122,10 @@ void Scene::cursor_position_callback(int xpos, int ypos) {
 	}
 
 	// invoke object hover leave event
-	if (hovering_obj_id != new_hovering_obj_id && hovering_obj_id >= 0)
-		get_object_ptr(hovering_obj_id)->on_hover_leave();
+	if (hovering_obj_id != new_hovering_obj_id && hovering_obj_id >= 0) {
+		Object* obj = get_object_ptr(hovering_obj_id);
+		if (obj != nullptr) obj->on_hover_leave();
+	}
 
 	hovering_obj_id = new_hovering_obj_id;
 
@@ -111,7 +133,7 @@ void Scene::cursor_position_callback(int xpos, int ypos) {
 
 	// perform dragging
 	if (dragging_obj_id >= 0)
-		get_object_ptr(dragging_obj_id)->on_move(world_curson_pos_x, world_curson_pos_y);
+		get_object_ptr(dragging_obj_id)->on_move(ray_world);
 }
 
 void Scene::mouse_button_callback(int button, int action, int mods) {
@@ -122,20 +144,24 @@ void Scene::mouse_button_callback(int button, int action, int mods) {
 				return;
 		}
 			
-		if (selected_obj_id >= 0)
-			get_object_ptr(selected_obj_id)->on_release();
+		if (selected_obj_id >= 0) {
+			Object* obj = get_object_ptr(selected_obj_id);
+			if (obj != nullptr) obj->on_release();
+		}
 
 		selected_obj_id = hovering_obj_id;
 
-		if (selected_obj_id >= 0)
-			get_object_ptr(selected_obj_id)->on_select();
+		if (selected_obj_id >= 0) {
+			Object* obj = get_object_ptr(selected_obj_id);
+			if (obj != nullptr) obj->on_select();
+		}
 	}
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		if (hovering_obj_id >= 0) {
 			dragging_obj_id = hovering_obj_id;
 			// start dragging
-			get_object_ptr(dragging_obj_id)->on_move(world_curson_pos_x, world_curson_pos_y);
+			//get_object_ptr(dragging_obj_id)->on_move(world_curson_pos_x, world_curson_pos_y);
 		}
 	}
 

@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{196df7c4-f434-447f-91f8-ab625ff207ec}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -33,12 +36,34 @@
     <ClCompile Include="src\scene.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends\imgui_impl_glfw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends\imgui_impl_vulkan.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\shader.frag" />
+    <None Include="shaders\texture.frag" />
     <None Include="shaders\compile.bat">
       <Filter>File di origine</Filter>
     </None>
+    <None Include="shaders\color.frag" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\read_file.h">
@@ -58,6 +83,12 @@
     </ClInclude>
     <ClInclude Include="include\scene.h">
       <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

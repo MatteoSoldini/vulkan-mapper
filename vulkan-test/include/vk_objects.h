@@ -15,28 +15,31 @@ public:
 	// renderer
 	virtual std::vector<Vertex> get_vertices() = 0;
 	virtual std::vector<uint16_t> get_indices() = 0;
+	virtual uint32_t get_pipeline_index() = 0;
 
 	// events
 	virtual void on_hover_enter() = 0;
 	virtual void on_hover_leave() = 0;
 	virtual void on_select() = 0;
 	virtual void on_release() = 0;
-	virtual void on_move(float pos_x, float pos_y) = 0;
+	virtual void on_move(glm::vec4 ray_world) = 0;
 
 	// config
 	virtual bool selectable() = 0;
 };
 
-class Plane : public Object, public std::enable_shared_from_this<Plane> {
+class Plane : public Object {
 private:
 	uint8_t id;
 	float pos_x = 0;
 	float pos_y = 0;
 	std::vector<Vertex> vertices;
 	std::vector<uint8_t> marker_ids;
+	float width;
+	float height;
 
 public:
-	Plane(uint8_t id, Scene* scene_ptr, float width, float heigth, float pos_x, float pos_y, glm::vec3 color);
+	Plane(uint8_t id, Scene* scene_ptr, float width, float height, float pos_x, float pos_y, glm::vec3 color);
 	
 	Scene* scene_ptr;
 
@@ -46,12 +49,13 @@ public:
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
+	uint32_t get_pipeline_index() { return 0; };
 	void on_hover_enter();
 	void on_hover_leave();
 	void on_select();
 	void on_release();
-	void on_move(float pos_x, float pos_y);
-	void move_vertex(unsigned int vertex_id, float pos_x, float pos_y);
+	void on_move(glm::vec4 ray_world);
+	void move_vertex(unsigned int vertex_id, glm::vec4 ray_world);
 	bool selectable() { return true; };
 };
 
@@ -78,11 +82,14 @@ public:
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
+	uint32_t get_pipeline_index() { return 1; };
 
 	void on_hover_enter();
 	void on_hover_leave();
 	void on_select();
 	void on_release();
-	void on_move(float pos_x, float pos_y);
+	void on_move(glm::vec4 ray_world);
 	bool selectable() { return true; };
+	glm::vec2 get_position();
+	uint16_t get_vertex_id();
 };

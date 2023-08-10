@@ -13,9 +13,6 @@ private:
 	unsigned int window_width = 0;
 	unsigned int window_height = 0;
 
-	float world_curson_pos_x = 0;
-	float world_curson_pos_y = 0;
-
 	int hovering_obj_id = -1;	// mouse hover
 	int selected_obj_id = -1;	// clicked
 	int dragging_obj_id = -1;

@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <optional>
+#include <string>
 #include "../include/scene.h"
 
 
@@ -28,6 +29,11 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct PipelineShadersFiles {
+    std::string vertex_shader_file;
+    std::string fragment_shader_file;
+};
+
 class VulkanEngine {
 public:
     void run() {
@@ -37,7 +43,6 @@ public:
         cleanup();
     }
     
-
 private:
     GLFWwindow* window;
     VkInstance instance;
@@ -52,8 +57,8 @@ private:
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
+    std::vector<VkPipelineLayout> pipelineLayouts;
+    std::vector <VkPipeline> graphicsPipelines;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -64,6 +69,10 @@ private:
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
+    VkImageView textureImageView;
+    VkSampler textureSampler;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -71,6 +80,9 @@ private:
 
     bool framebufferResized = false;
     Scene scene;
+
+    VkCommandPool imGuiCommandPool;
+    std::vector<VkCommandBuffer> imGuiCommandBuffers;
 
     // Syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -82,6 +94,11 @@ private:
     const uint32_t HEIGHT = 600;
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    const std::vector<PipelineShadersFiles> pipeline_shaders = {
+        PipelineShadersFiles{"shaders/vert.spv", "shaders/text.spv"},
+        PipelineShadersFiles{"shaders/vert.spv", "shaders/col.spv"},
+    };
 
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
@@ -101,7 +118,13 @@ private:
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
+    VkCommandBuffer beginSingleTimeCommands();
+
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    VkImageView createImageView(VkImage image, VkFormat format);
 
     bool checkValidationLayerSupport();
 
@@ -147,15 +170,27 @@ private:
 
     void createFramebuffers();
 
-    void createCommandPool();
+    void createCommandPool(VkCommandPool* commandPool, VkCommandPoolCreateFlags flags);
 
-    void createCommandBuffers();
+    void createCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers, VkCommandPool& commandPool);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void createSyncObjects();
 
     void recreateSwapChain();
+
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
+    void createTextureImage();
+
+    void createTextureImageView();
+
+    void createTextureSampler();
 
     void createVertexBuffer();
 
@@ -184,4 +219,6 @@ private:
     void cleanupSwapChain();
 
     void cleanup();
+
+    void initImgui();
 };

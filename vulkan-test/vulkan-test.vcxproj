@@ -124,7 +124,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -142,7 +142,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -155,6 +155,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_demo.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_draw.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_tables.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\clamp\clamp.cpp" />
     <ClCompile Include="src\scene.cpp" />
@@ -163,10 +170,13 @@
     <ClCompile Include="src\vk_objects.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\color.frag" />
     <None Include="shaders\compile.bat" />
-    <None Include="shaders\shader.frag" />
+    <None Include="shaders\texture.frag" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.h" />
+    <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_internal.h" />
     <ClInclude Include="include\clamp.h" />
     <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\vk_engine.h" />
