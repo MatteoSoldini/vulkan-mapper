@@ -64,6 +64,7 @@
       <Filter>File di origine</Filter>
     </None>
     <None Include="shaders\color.frag" />
+    <None Include="readme.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\read_file.h">

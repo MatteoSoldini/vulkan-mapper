@@ -13,6 +13,8 @@
 #include <string>
 #include "../include/scene.h"
 
+#include <imgui.h>
+
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
@@ -81,8 +83,12 @@ private:
     bool framebufferResized = false;
     Scene scene;
 
+    // imgui
     VkCommandPool imGuiCommandPool;
     std::vector<VkCommandBuffer> imGuiCommandBuffers;
+    VkRenderPass imGuiRenderPass;
+    std::vector<VkFramebuffer> imGuiFrameBuffers;
+    VkDescriptorPool imguiDescriptorPool;
 
     // Syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -168,7 +174,7 @@ private:
 
     void createGraphicsPipeline();
 
-    void createFramebuffers();
+    void createFramebuffers(std::vector<VkFramebuffer>& frameBuffers, VkRenderPass renderPass);
 
     void createCommandPool(VkCommandPool* commandPool, VkCommandPoolCreateFlags flags);
 
@@ -220,5 +226,9 @@ private:
 
     void cleanup();
 
-    void initImgui();
+    void initImGui();
+
+    void recordImGuiCommandBuffer(uint32_t imageIndex);
+
+    void imGuiCleanup();
 };

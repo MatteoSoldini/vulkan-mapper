@@ -173,6 +173,7 @@
     <None Include="shaders\color.frag" />
     <None Include="shaders\compile.bat" />
     <None Include="shaders\texture.frag" />
+    <None Include="readme.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.h" />
