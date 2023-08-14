@@ -22,12 +22,16 @@ private:
 public:
 	Scene();
 
-	void add_object(Object* object_ptr);
+	int get_selected_obj_id();
+	int get_hovering_obj_id();
+
+	uint8_t add_object(Object* object_ptr);
 	void remove_object(uint8_t object_id);
 	Object* get_object_ptr(uint8_t object_id);
 	std::vector<Object*>* get_objects();
-	double triangle_area(Point a, Point b, Point c);
-	bool point_inside_triangle(Point point, std::vector<Point> triangle);
+	std::vector<uint8_t> get_ids();
+	double triangle_area(glm::vec2 a, glm::vec2 b, glm::vec2 c);
+	bool point_inside_triangle(glm::vec2 point, std::vector<glm::vec2> triangle);
 	void cursor_position_callback(int xpos, int ypos);
 	void mouse_button_callback(int button, int action, int mods);
 	void window_resize_callback(unsigned int width, unsigned int height);

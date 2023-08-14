@@ -122,9 +122,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -140,9 +140,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.3.231.1\Include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\include;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\glm;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\stb;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui;C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -162,6 +162,9 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_draw.cpp" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_tables.cpp" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c" />
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_win.cpp" />
+    <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\clamp\clamp.cpp" />
     <ClCompile Include="src\scene.cpp" />
@@ -180,6 +183,7 @@
     <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_internal.h" />
     <ClInclude Include="include\clamp.h" />
     <ClInclude Include="include\scene.h" />
+    <ClInclude Include="include\ui.h" />
     <ClInclude Include="include\vk_engine.h" />
     <ClInclude Include="include\vk_objects.h" />
     <ClInclude Include="include\vk_types.h" />

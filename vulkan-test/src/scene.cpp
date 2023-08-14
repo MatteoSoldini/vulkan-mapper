@@ -8,22 +8,50 @@
 
 
 Scene::Scene() {
-	add_object(new Plane(0, this, .3f, .3f, 0.0f, 0.0f, { 1.0f, 0.0f, 0.0f }));
-	add_object(new Plane(1, this, .3f, .3f, 0.5f, 0.0f, { 0.0f, 1.0f, 0.0f }));
+	add_object(new Plane(this, .3f, .3f, 0.0f, 0.0f));
+	add_object(new Plane(this, .3f, .3f, 0.5f, 0.0f));
 }
 
-void Scene::add_object(Object* object_ptr) {
+int Scene::get_selected_obj_id() {
+	return selected_obj_id;
+}
+
+int Scene::get_hovering_obj_id() {
+	return hovering_obj_id;
+}
+
+uint8_t Scene::add_object(Object* object_ptr) {
+	uint8_t new_id = 0;
+
+	for (Object* object : objects) {
+		uint8_t object_id = object->get_id();
+
+		if (object_id >= new_id) {
+			new_id = object_id + 1;
+		}
+	}
+
+	object_ptr->set_id(new_id);
+
 	objects.push_back(object_ptr);
-	// TO DO: verify unique id
+
+	return new_id;
 }
 
 void Scene::remove_object(uint8_t object_id) {
-	for (int i = 0; i < objects.size(); i++) {
-		if (objects[i]->get_id() == object_id) {
-			// Release memory pointed by pointer-variable
-			delete objects[i];
-			// Delete vector record
-			objects.erase(objects.begin() + i);
+	for (Object* object_ptr : objects) {
+		if (object_ptr->get_id() == object_id) {
+			object_ptr->on_remove();
+
+			// remove object from vector
+			// position might have changed after on_remove()
+			for (int i = 0; i < objects.size(); i++) {
+				if (objects[i]->get_id() == object_id) {
+					objects.erase(objects.begin() + i);
+				}
+			}
+
+			delete object_ptr;
 			return;
 		}
 	}
@@ -31,7 +59,7 @@ void Scene::remove_object(uint8_t object_id) {
 }
 
 Object* Scene::get_object_ptr(uint8_t object_id) {
-	for (auto object : objects) {
+	for (Object* object : objects) {
 		if (object->get_id() == object_id) return object;
 	}
 	return nullptr;
@@ -41,7 +69,17 @@ std::vector<Object*>* Scene::get_objects() {
 	return &objects;
 }
 
-double Scene::triangle_area(Point a, Point b, Point c) {
+std::vector<uint8_t> Scene::get_ids() {
+	std::vector<uint8_t> ids;
+
+	for (Object* object_ptr : objects) {
+		ids.push_back(object_ptr->get_id());
+	}
+
+	return ids;
+}
+
+double Scene::triangle_area(glm::vec2 a, glm::vec2 b, glm::vec2 c) {
 	float A = sqrt((double)(b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
 	float B = sqrt((double)(b.x - c.x) * (b.x - c.x) + (b.y - c.y) * (b.y - c.y));
 	float C = sqrt((double)(a.x - c.x) * (a.x - c.x) + (a.y - c.y) * (a.y - c.y));
@@ -55,7 +93,7 @@ double Scene::triangle_area(Point a, Point b, Point c) {
 	return sqrt(s * (s - A) * (s - B) * (s - C));
 }
 
-bool Scene::point_inside_triangle(Point point, std::vector<Point> triangle) {
+bool Scene::point_inside_triangle(glm::vec2 point, std::vector<glm::vec2> triangle) {
 	float A = triangle_area(triangle[0], triangle[1], triangle[2]);
 	float A1 = triangle_area(point, triangle[1], triangle[2]);
 	float A2 = triangle_area(triangle[0], point, triangle[2]);
@@ -99,15 +137,18 @@ void Scene::cursor_position_callback(int xpos, int ypos) {
 		if (new_hovering_obj_id >= 0) break;
 
 		for (int i = 0; i < indices.size(); i += 3) {
-			std::vector<Point> triangle = {
-				Point({ vertices[indices[i]].pos.x, vertices[indices[i]].pos.y }),
-				Point({ vertices[indices[i + 1]].pos.x, vertices[indices[i + 1]].pos.y }),
-				Point({ vertices[indices[i + 2]].pos.x, vertices[indices[i + 2]].pos.y })
-			};
+			std::vector<glm::vec2> triangle;
+			triangle.resize(3);
+
+			for (int j = 0; j < 3; j++) {
+				auto vertex_normal = glm::normalize(vertices[indices[i + j]].pos);
+				float flat_t = -1 / vertex_normal.z;
+				triangle[j] = glm::vec2({ vertex_normal.x * flat_t, vertex_normal.y * flat_t });
+			}
 
 			// Cursor is hovering obj
 			if (point_inside_triangle(
-				Point({ x_at_z_zero, y_at_z_zero }),
+				glm::vec2({ x_at_z_zero, y_at_z_zero }),
 				triangle
 			)) {
 				// invoke object hover enter event

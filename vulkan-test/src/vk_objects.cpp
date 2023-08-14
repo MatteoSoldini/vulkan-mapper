@@ -5,19 +5,16 @@
 #include <iostream>
 
 // Rect
-Rect::Rect(uint8_t id, Scene* scene_ptr, float width, float heigth, float pos_x, float pos_y, glm::vec3 color, uint8_t parent_id, uint16_t vertex_id) {
-    Rect::width = width;
-    Rect::heigth = heigth;
-    Rect::pos_x = pos_x;
-    Rect::pos_y = pos_y;
-    Rect::color = color;
-    Rect::vertex_id = vertex_id;
-    Rect::id = id;
-    Rect::parent_id = parent_id;
-    Rect::scene_ptr = scene_ptr;
+Marker::Marker(Scene* scene_ptr, float pos_x, float pos_y, glm::vec3 color, uint8_t parent_id, uint16_t vertex_id) {
+    Marker::pos_x = pos_x;
+    Marker::pos_y = pos_y;
+    Marker::color = color;
+    Marker::vertex_id = vertex_id;
+    Marker::parent_id = parent_id;
+    Marker::scene_ptr = scene_ptr;
 }
 
-std::vector<Vertex> Rect::get_vertices() {
+std::vector<Vertex> Marker::get_vertices() {
     glm::vec3 final_color = color;
     
     if (highlighted) {
@@ -27,46 +24,46 @@ std::vector<Vertex> Rect::get_vertices() {
     }
 
     return {
-        {{ -Rect::width / 2 + Rect::pos_x, -Rect::heigth / 2 + Rect::pos_y, -1.0f }, final_color, {1.0f, 0.0f}},
-        {{ Rect::width / 2 + Rect::pos_x, -Rect::heigth / 2 + Rect::pos_y, -1.0f}, final_color, {0.0f, 0.0f}},
-        {{ Rect::width / 2 + Rect::pos_x, Rect::heigth / 2 + Rect::pos_y, -1.0f}, final_color, {0.0f, 1.0f}},
-        {{ -Rect::width / 2 + Rect::pos_x, Rect::heigth / 2 + Rect::pos_y, -1.0f}, final_color, {1.0f, 1.0f}}
+        {{ -Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f }, final_color, {1.0f, 0.0f}},
+        {{ Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {0.0f, 0.0f}},
+        {{ Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {0.0f, 1.0f}},
+        {{ -Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {1.0f, 1.0f}}
     };
 }
 
-std::vector<uint16_t> Rect::get_indices() {
+std::vector<uint16_t> Marker::get_indices() {
     return {
         0, 1, 2, 2, 3, 0
     };
 }
 
-void Rect::on_hover_enter() {
+void Marker::on_hover_enter() {
 }
 
-void Rect::on_hover_leave() {
+void Marker::on_hover_leave() {
 }
 
-void Rect::on_select() {
+void Marker::on_select() {
     highlighted = true;
 }
 
-void Rect::on_release() {
+void Marker::on_release() {
     highlighted = false;
 }
 
-glm::vec2 Rect::get_position() {
-    return { Rect::pos_x, Rect::pos_y };
+glm::vec2 Marker::get_position() {
+    return { Marker::pos_x, Marker::pos_y };
 }
 
-uint16_t Rect::get_vertex_id() {
-    return Rect::vertex_id;
+uint16_t Marker::get_vertex_id() {
+    return Marker::vertex_id;
 }
 
-void Rect::on_move(glm::vec4 ray_world) {
+void Marker::on_move(glm::vec4 ray_world) {
     float t = -1 / ray_world.z;
 
-    Rect::pos_x = ray_world.x * t;
-    Rect::pos_y = ray_world.y * t;
+    Marker::pos_x = ray_world.x * t;
+    Marker::pos_y = ray_world.y * t;
 
     Plane* parent = dynamic_cast<Plane*>(scene_ptr->get_object_ptr(parent_id));
     
@@ -75,21 +72,28 @@ void Rect::on_move(glm::vec4 ray_world) {
 }
 
 // Plane
-Plane::Plane(uint8_t id, Scene* scene_ptr, float width, float height, float pos_x, float pos_y, glm::vec3 color) {
+Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y) {
+    const glm::vec3 default_color = { 0.5f, 0.5f, 0.5f };
+    
     Plane::width = width;
     Plane::height = height;
     
     Plane::vertices = {
-        {{ -width / 2 + pos_x, -height / 2 + pos_y, -1.0f }, color, {0.0f, 1.0f}},
-        {{ width / 2 + pos_x, -height / 2 + pos_y, -1.0f}, color, {1.0f, 1.0f}},
-        {{ width / 2 + pos_x, height / 2 + pos_y, -1.0f}, color, {1.0f, 0.0f}},
-        {{ -width / 2 + pos_x, height / 2 + pos_y, -1.0f}, color, {0.0f, 0.0f}}
+        {{ -width / 2 + pos_x, -height / 2 + pos_y, -1.0f }, default_color, {0.0f, 1.0f}},
+        {{ width / 2 + pos_x, -height / 2 + pos_y, -1.0f}, default_color, {1.0f, 1.0f}},
+        {{ width / 2 + pos_x, height / 2 + pos_y, -1.0f}, default_color, {1.0f, 0.0f}},
+        {{ -width / 2 + pos_x, height / 2 + pos_y, -1.0f}, default_color, {0.0f, 0.0f}}
     };
 
     Plane::pos_x = pos_x;
     Plane::pos_y = pos_y;
-    Plane::id = id;
     Plane::scene_ptr = scene_ptr;
+}
+
+void Plane::on_remove() {
+    for (auto marker_id : marker_ids) {
+        scene_ptr->remove_object(marker_id);
+    }
 }
 
 std::vector<Vertex> Plane::get_vertices() {
@@ -116,15 +120,11 @@ void Plane::on_select() {
     }
 
     // add marker
-    uint8_t first_id = scene_ptr->get_objects()->size();
     for (int i = 0; i < vertices.size(); i++) {
-        uint8_t id = first_id + i;
         // camera at 0,0,0
         glm::vec3 ray = glm::normalize(vertices[i].pos);
         float flat_t = -1.0f / ray.z;
-
-        scene_ptr->add_object(new Rect(id, scene_ptr, .05f, .05f, ray.x*flat_t, ray.y * flat_t, {1.0f, 1.0f,1.0f}, Plane::id, i));
-        marker_ids.push_back(id);
+        marker_ids.push_back(scene_ptr->add_object(new Marker(scene_ptr, ray.x * flat_t, ray.y * flat_t, { 1.0f, 1.0f,1.0f }, Plane::get_id(), i)));
     }
 }
 
@@ -161,7 +161,9 @@ void Plane::on_move(glm::vec4 ray_world) {
            
         // assuming vertex number same as marker number
         for (int i = 0; i < vertices.size(); i++) {
-            //scene_ptr->get_object_ptr(marker_ids[i])->on_move(vertices[i].pos.x, vertices[i].pos.y);
+            auto vertex_normal = glm::normalize(vertices[i].pos);
+
+            scene_ptr->get_object_ptr(marker_ids[i])->on_move({ vertex_normal.x, vertex_normal.y, vertex_normal.z, 0.0f });
         }
     }
 }
@@ -329,7 +331,7 @@ void Plane::move_vertex(unsigned int vertex_id, glm::vec4 ray_world) {
 
     glm::vec3 target[4];
     for (auto marker_id : marker_ids) {
-        Rect *rect_ptr = dynamic_cast<Rect*>(scene_ptr->get_object_ptr(marker_id));
+        Marker *rect_ptr = dynamic_cast<Marker*>(scene_ptr->get_object_ptr(marker_id));
         glm::vec2 position = rect_ptr->get_position();
         uint16_t vertex_id = rect_ptr->get_vertex_id();
         target[vertex_id].x = position.x;

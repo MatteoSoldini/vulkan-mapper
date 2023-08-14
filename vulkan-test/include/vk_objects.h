@@ -4,13 +4,21 @@
 #include <memory>
 #include "vk_types.h"
 #include "scene.h"
+#include <string>
 
 class Scene;
 
 class Object {
+private:
+	uint8_t id;
+
 public:
 	// scene
-	virtual uint8_t get_id() = 0;
+	uint8_t get_id() { return Object::id; };
+	void set_id(uint8_t id) {
+		Object::id = id;
+	}
+	virtual void on_remove() = 0;
 
 	// renderer
 	virtual std::vector<Vertex> get_vertices() = 0;
@@ -30,26 +38,33 @@ public:
 
 class Plane : public Object {
 private:
-	uint8_t id;
 	float pos_x = 0;
 	float pos_y = 0;
 	std::vector<Vertex> vertices;
 	std::vector<uint8_t> marker_ids;
 	float width;
 	float height;
+	std::string image_path = "src/test.jpg";
 
 public:
-	Plane(uint8_t id, Scene* scene_ptr, float width, float height, float pos_x, float pos_y, glm::vec3 color);
+	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
 	
 	Scene* scene_ptr;
 
-	uint8_t get_id() {
-		return id;
-	};
+	void on_remove();
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
 	uint32_t get_pipeline_index() { return 0; };
+
+	std::string get_image_path() {
+		return Plane::image_path;
+	}
+
+	void set_image_path(std::string image_path) {
+		Plane::image_path = image_path;
+	}
+
 	void on_hover_enter();
 	void on_hover_leave();
 	void on_select();
@@ -59,11 +74,10 @@ public:
 	bool selectable() { return true; };
 };
 
-class Rect : public Object {
+class Marker : public Object {
 private:
-	uint8_t id;
-	float width;
-	float heigth;
+	const float dimension = 0.05f;
+
 	float pos_x;
 	float pos_y;
 	bool highlighted = false;
@@ -72,12 +86,12 @@ private:
 	uint16_t vertex_id;
 
 public:
-	Rect(uint8_t id, Scene* scene_ptr, float width, float heigth, float pos_x, float pos_y, glm::vec3 color, uint8_t parent_id, uint16_t vertex_id);
+	Marker(Scene* scene_ptr, float pos_x, float pos_y, glm::vec3 color, uint8_t parent_id, uint16_t vertex_id);
 	
 	Scene* scene_ptr;
 
-	uint8_t get_id() {
-		return id;
+	void on_remove() {
+		return;
 	};
 
 	std::vector<Vertex> get_vertices();

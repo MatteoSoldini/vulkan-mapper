@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include "../include/scene.h"
+#include "../include/ui.h"
 
 #include <imgui.h>
 
@@ -90,14 +91,16 @@ private:
     std::vector<VkFramebuffer> imGuiFrameBuffers;
     VkDescriptorPool imguiDescriptorPool;
 
+    UI ui;
+
     // Syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
 
-    const uint32_t WIDTH = 800;
-    const uint32_t HEIGHT = 600;
+    const uint32_t WIDTH = 1280;
+    const uint32_t HEIGHT = 720;
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
 

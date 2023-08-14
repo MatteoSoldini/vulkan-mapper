@@ -16,6 +16,9 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{196df7c4-f434-447f-91f8-ab625ff207ec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nfd">
+      <UniqueIdentifier>{101cf894-6bec-4dd5-b289-53341a20c164}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -57,6 +60,15 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\backends\imgui_impl_vulkan.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
+    <ClCompile Include="src\ui.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_win.cpp">
+      <Filter>nfd</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c">
+      <Filter>nfd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\texture.frag" />
@@ -90,6 +102,9 @@
     </ClInclude>
     <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_internal.h">
       <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ui.h">
+      <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

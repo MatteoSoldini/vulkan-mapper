@@ -9,11 +9,6 @@
 #include <vulkan/vulkan_core.h>
 #include <array>
 
-struct Point {
-    float x;
-    float y;
-};
-
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 color;

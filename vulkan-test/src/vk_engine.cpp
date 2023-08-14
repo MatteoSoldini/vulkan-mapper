@@ -21,9 +21,11 @@
 // texture
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include "../include/ui.h"
 
 const unsigned int vertex_buffer_size = sizeof(Vertex) * 128;
 const unsigned int index_buffer_size = sizeof(uint16_t) * 128;
+
 
 uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -191,6 +193,9 @@ void VulkanEngine::initWindow() {
 
     // mouse button callback
     glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+    // ui
+    ui = UI(&scene, window);
 }
 
 
@@ -937,7 +942,14 @@ void VulkanEngine::recreateSwapChain() {
     createSwapChain();
     createImageViews();
     createFramebuffers(swapChainFramebuffers, renderPass);
+
+    // imgui
+    for (size_t i = 0; i < imGuiFrameBuffers.size(); i++) {
+        vkDestroyFramebuffer(device, imGuiFrameBuffers[i], nullptr);
+    }
     createFramebuffers(imGuiFrameBuffers, imGuiRenderPass);
+
+    //ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, width, height, g_MinImageCount);
 }
 
 void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
@@ -1724,7 +1736,7 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
+    ui.draw_ui();
 
     ImGui::Render();
 
@@ -1765,8 +1777,8 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
 }
 
 void VulkanEngine::imGuiCleanup() {
-    for (auto framebuffer : imGuiFrameBuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    for (size_t i = 0; i < imGuiFrameBuffers.size(); i++) {
+        vkDestroyFramebuffer(device, imGuiFrameBuffers[i], nullptr);
     }
     
     vkDestroyRenderPass(device, imGuiRenderPass, nullptr);
