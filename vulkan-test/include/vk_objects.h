@@ -61,9 +61,7 @@ public:
 		return Plane::image_path;
 	}
 
-	void set_image_path(std::string image_path) {
-		Plane::image_path = image_path;
-	}
+	void set_image_path(std::string image_path);
 
 	void on_hover_enter();
 	void on_hover_leave();

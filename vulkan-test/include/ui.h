@@ -2,6 +2,8 @@
 
 #include "scene.h"
 
+class Scene;
+
 class UI {
 private:
 	bool show_demo_window = false;

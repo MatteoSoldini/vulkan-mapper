@@ -7,9 +7,8 @@
 #include <glm/ext/matrix_transform.hpp>
 
 
-Scene::Scene() {
-	add_object(new Plane(this, .3f, .3f, 0.0f, 0.0f));
-	add_object(new Plane(this, .3f, .3f, 0.5f, 0.0f));
+Scene::Scene(VulkanEngine* engine) {
+	Scene::engine = engine;
 }
 
 int Scene::get_selected_obj_id() {

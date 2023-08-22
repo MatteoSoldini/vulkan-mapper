@@ -11,8 +11,9 @@
 #include <vector>
 #include <optional>
 #include <string>
-#include "../include/scene.h"
-#include "../include/ui.h"
+#include <map>
+#include "scene.h"
+#include "ui.h"
 
 #include <imgui.h>
 
@@ -32,13 +33,34 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-struct PipelineShadersFiles {
+struct PipelineToLoad {
+    std::string name;
     std::string vertex_shader_file;
     std::string fragment_shader_file;
 };
 
+// runtime object
+struct Texture {
+    VkImage image;
+    VkDeviceMemory image_memory;
+    VkImageView image_view;
+    VkDescriptorSet descriptor_set;
+};
+
+// compile time object
+struct Pipeline {
+    VkPipeline pipeline;
+    VkPipelineLayout pipeline_layout;
+};
+
+class Scene;
+
+class UI;
+
 class VulkanEngine {
 public:
+    VulkanEngine();
+
     void run() {
         initWindow();
         initVulkan();
@@ -47,6 +69,28 @@ public:
     }
     
 private:
+    // constants
+    const uint32_t WIDTH = 1280;
+    const uint32_t HEIGHT = 720;
+
+    const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    const std::vector<PipelineToLoad> pipelines_to_load = {
+        PipelineToLoad{"color", "shaders/vert.spv", "shaders/text.spv"},
+        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/col.spv"},
+    };
+
+    const std::vector<const char*> validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+
+    const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+    
+    const uint32_t VERTICES_COUNT = 128;
+    const uint32_t INDICES_COUNT = 128;
+
     GLFWwindow* window;
     VkInstance instance;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -60,8 +104,6 @@ private:
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass;
-    std::vector<VkPipelineLayout> pipelineLayouts;
-    std::vector <VkPipeline> graphicsPipelines;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -69,20 +111,29 @@ private:
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
-    VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorPool descriptorPool;
-    std::vector<VkDescriptorSet> descriptorSets;
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
-    VkImageView textureImageView;
+    std::vector<VkDescriptorSet> uniform_buffer_sets;
     VkSampler textureSampler;
 
+    // textures
+    std::map<std::string, Texture> textures;
+
+    // pipelines
+    std::map<std::string, Pipeline> pipelines;
+
+    // descriptor set layouts
+    VkDescriptorSetLayout single_texture_layout;
+    VkDescriptorSetLayout uniform_buffer_layout;
+
+    // uniform buffer
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
 
     bool framebufferResized = false;
-    Scene scene;
+
+    // scene
+    Scene* scene;
 
     // imgui
     VkCommandPool imGuiCommandPool;
@@ -91,31 +142,13 @@ private:
     std::vector<VkFramebuffer> imGuiFrameBuffers;
     VkDescriptorPool imguiDescriptorPool;
 
-    UI ui;
+    UI* ui;
 
     // Syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
-
-    const uint32_t WIDTH = 1280;
-    const uint32_t HEIGHT = 720;
-
-    const int MAX_FRAMES_IN_FLIGHT = 2;
-
-    const std::vector<PipelineShadersFiles> pipeline_shaders = {
-        PipelineShadersFiles{"shaders/vert.spv", "shaders/text.spv"},
-        PipelineShadersFiles{"shaders/vert.spv", "shaders/col.spv"},
-    };
-
-    const std::vector<const char*> validationLayers = {
-        "VK_LAYER_KHRONOS_validation"
-    };
-
-    const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
 
     #ifdef NDEBUG
         const bool enableValidationLayers = false;
@@ -195,9 +228,9 @@ private:
 
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
-    void createTextureImage();
+    //void createTextureImage();
 
-    void createTextureImageView();
+    //void createTextureImageView();
 
     void createTextureSampler();
 
@@ -205,7 +238,7 @@ private:
 
     void createIndexBuffer();
 
-    void createDescriptorSetLayout();
+    void createDescriptorSetLayouts();
 
     void createUniformBuffers();
 
@@ -234,4 +267,7 @@ private:
     void recordImGuiCommandBuffer(uint32_t imageIndex);
 
     void imGuiCleanup();
+
+public:
+    void loadTexture(std::string image_path);
 };

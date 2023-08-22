@@ -106,6 +106,11 @@ std::vector<uint16_t> Plane::get_indices() {
     };
 }
 
+void Plane::set_image_path(std::string image_path) {
+    Plane::image_path = image_path;
+    scene_ptr->get_engine_ptr()->loadTexture(image_path);
+}
+
 void Plane::on_hover_enter() {
 }
 

@@ -5,8 +5,11 @@
 #include <vector>
 #include <memory>
 #include "vk_objects.h"
+#include "vk_engine.h"
 
 class Object;
+
+class VulkanEngine;
 
 class Scene {
 private:
@@ -19,8 +22,10 @@ private:
 
 	std::vector<Object*> objects;
 
+	VulkanEngine* engine;
+
 public:
-	Scene();
+	Scene(VulkanEngine* engine);
 
 	int get_selected_obj_id();
 	int get_hovering_obj_id();
@@ -35,4 +40,7 @@ public:
 	void cursor_position_callback(int xpos, int ypos);
 	void mouse_button_callback(int button, int action, int mods);
 	void window_resize_callback(unsigned int width, unsigned int height);
+	VulkanEngine* get_engine_ptr() {
+		return engine;
+	};
 };
