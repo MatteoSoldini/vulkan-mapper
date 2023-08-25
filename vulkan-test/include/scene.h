@@ -33,7 +33,6 @@ public:
 	uint8_t add_object(Object* object_ptr);
 	void remove_object(uint8_t object_id);
 	Object* get_object_ptr(uint8_t object_id);
-	std::vector<Object*>* get_objects();
 	std::vector<uint8_t> get_ids();
 	double triangle_area(glm::vec2 a, glm::vec2 b, glm::vec2 c);
 	bool point_inside_triangle(glm::vec2 point, std::vector<glm::vec2> triangle);

@@ -76,8 +76,8 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
     const std::vector<PipelineToLoad> pipelines_to_load = {
-        PipelineToLoad{"color", "shaders/vert.spv", "shaders/text.spv"},
-        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/col.spv"},
+        PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv"},
+        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv"},
     };
 
     const std::vector<const char*> validationLayers = {

@@ -17,6 +17,7 @@ void UI::draw_menu_bar() {
     }
 }
 
+// TO DO: filter file extensions
 std::string UI::open_file_dialog() {
     nfdchar_t* outPath = NULL;
     nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
@@ -113,6 +114,7 @@ void UI::draw_function_window() {
     }
 
     if (ImGui::Button("Add")) {
+        // TO DO: open file dialog 
         scene->add_object(new Plane(scene, .3f, .3f, 0.0f, 0.0f));
     }
 

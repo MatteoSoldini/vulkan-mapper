@@ -866,41 +866,58 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    for (std::map<std::string, Pipeline>::iterator pipeline = pipelines.begin(); pipeline != pipelines.end(); pipeline++) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->second.pipeline);
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChainExtent.width);
+    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(swapChainExtent.width);
-        viewport.height = static_cast<float>(swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = swapChainExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = swapChainExtent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    // bind buffer
+    VkBuffer vertexBuffers[] = { vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        VkBuffer vertexBuffers[] = { vertexBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    // looping objects
+    std::string last_pipeline_name = "";
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->second.pipeline_layout, 0, 1, &uniform_buffer_sets[currentFrame], 0, nullptr);
+    auto object_ids = scene->get_ids();
+    int index = 0;
 
-        std::vector<uint16_t> indices;
-        int index = 0;
-        auto objects = scene->get_objects();
+    for (auto object_id : object_ids) {
+        auto object = scene->get_object_ptr(object_id);
 
-        for (auto object = objects->begin(); object != objects->end(); object++) {
-            if ((*object)->get_pipeline_index() == 0) {
-                std::vector<uint16_t> object_indices = (*object)->get_indices();
-                vkCmdDrawIndexed(commandBuffer, object_indices.size(), 1, object_indices.size() * index, 0, 0);
-            }
-            index++;
+        // bind new pipeline if needed
+        std::string pipeline_name = object->get_pipeline_name();
+        if (pipeline_name != last_pipeline_name) {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipeline);
+
+            // bind vertex and index buffer to new pipeline
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipeline_layout, 0, 1, &uniform_buffer_sets[currentFrame], 0, nullptr);
+            last_pipeline_name = pipeline_name;
         }
+
+        // bind texture
+        if (pipeline_name == "texture") {
+            auto plane = dynamic_cast<Plane*>(object);
+            if (plane != nullptr) {
+                Texture texture = textures[plane->get_image_path()];
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipeline_layout, 1, 1, &texture.descriptor_set, 0, nullptr);
+            }
+        }
+
+        // draw
+        std::vector<uint16_t> object_indices = object->get_indices();
+        vkCmdDrawIndexed(commandBuffer, object_indices.size(), 1, object_indices.size() * index, 0, 0);
+        index++;
     }
 
     vkCmdEndRenderPass(commandBuffer);
@@ -1096,12 +1113,12 @@ void VulkanEngine::createTextureImage() {
 
     stbi_image_free(pixels);
 
-    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
 
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, texture_image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -1140,11 +1157,11 @@ void VulkanEngine::createVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
     
-    auto objects = scene->get_objects();
+    auto object_ids = scene->get_ids();
 
-    for (auto object = objects->begin(); object != objects->end(); object++) {
-        std::vector<Vertex> obj_vertices = (*object)->get_vertices();
-        
+    for (auto object_id : object_ids) {
+        std::vector<Vertex> obj_vertices = scene->get_object_ptr(object_id)->get_vertices();
+
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
     }
@@ -1175,12 +1192,12 @@ void VulkanEngine::createVertexBuffer() {
 void VulkanEngine::createIndexBuffer() {
     int indices_size = 0;
     std::vector<uint16_t> indices;
-
-    auto objects = scene->get_objects();
-
+    
     int offset = 0;
-    for (auto object = objects->begin(); object != objects->end(); object++) {
-        std::vector<uint16_t> obj_indices = (*object)->get_indices();
+    auto object_ids = scene->get_ids();
+
+    for (auto object_id : object_ids) {
+        std::vector<uint16_t> obj_indices = scene->get_object_ptr(object_id)->get_indices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1190,7 +1207,7 @@ void VulkanEngine::createIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += (*object)->get_vertices().size();
+        offset += scene->get_object_ptr(object_id)->get_vertices().size();
     }
 
     // create buffer
@@ -1322,13 +1339,13 @@ void VulkanEngine::createDescriptorSets() {
         descriptorWrites[0].pBufferInfo = &bufferInfo;
         
         /*
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = uniform_buffer_sets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
+        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[1].dstSet = uniform_buffer_sets[i];
+        descriptor_writes[1].dstBinding = 1;
+        descriptor_writes[1].dstArrayElement = 0;
+        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[1].descriptorCount = 1;
+        descriptor_writes[1].pImageInfo = &imageInfo;
         */
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1385,10 +1402,9 @@ void VulkanEngine::updateVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
 
-    auto objects = scene->get_objects();
-
-    for (auto object = objects->begin(); object != objects->end(); object++) {
-        std::vector<Vertex> obj_vertices = (*object)->get_vertices();
+    auto object_ids = scene->get_ids();
+    for (auto object_id : object_ids) {
+        std::vector<Vertex> obj_vertices = scene->get_object_ptr(object_id)->get_vertices();
 
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
@@ -1417,11 +1433,10 @@ void VulkanEngine::updateIndexBuffer() {
     int indices_size = 0;
     std::vector<uint16_t> indices;
 
-    auto objects = scene->get_objects();
-
     int offset = 0;
-    for (auto object = objects->begin(); object != objects->end(); object++) {
-        std::vector<uint16_t> obj_indices = (*object)->get_indices();
+    auto object_ids = scene->get_ids();
+    for (auto object_id : object_ids) {
+        std::vector<uint16_t> obj_indices = scene->get_object_ptr(object_id)->get_indices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1431,7 +1446,7 @@ void VulkanEngine::updateIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += (*object)->get_vertices().size();
+        offset += scene->get_object_ptr(object_id)->get_vertices().size();
     }
 
     if (indices_size == 0) return;
@@ -1560,8 +1575,8 @@ void VulkanEngine::cleanup() {
     /*
     vkDestroyImageView(device, textureImageView, nullptr);
 
-    vkDestroyImage(device, textureImage, nullptr);
-    vkFreeMemory(device, textureImageMemory, nullptr);
+    vkDestroyImage(device, texture_image, nullptr);
+    vkFreeMemory(device, texture_image_memory, nullptr);
     */
 
     // Destroy uniform buffers
@@ -1849,15 +1864,15 @@ void VulkanEngine::loadTexture(std::string image_path) {
 
     stbi_image_free(pixels);
 
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
+    VkImage texture_image;
+    VkDeviceMemory texture_image_memory;
 
-    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
 
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, texture_image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -1874,38 +1889,30 @@ void VulkanEngine::loadTexture(std::string image_path) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
+    VkImageView image_view = createImageView(texture_image, VK_FORMAT_R8G8B8A8_SRGB);
+
     // binding
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = textureImageView;
+    imageInfo.imageView = image_view;
     imageInfo.sampler = textureSampler;
 
-    std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+    VkWriteDescriptorSet descriptor_writes{};
+    descriptor_writes.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor_writes.dstSet = descriptor_set;
+    descriptor_writes.dstBinding = 0;
+    descriptor_writes.dstArrayElement = 0;
+    descriptor_writes.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptor_writes.descriptorCount = 1;
+    descriptor_writes.pImageInfo = &imageInfo;
 
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = uniform_buffer_sets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferInfo;
+    vkUpdateDescriptorSets(device, 1, &descriptor_writes, 0, nullptr);
 
-    /*
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = uniform_buffer_sets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfo;
-    */
-
-    vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-
-    // TO DO: engine texture loading
     Texture new_texture{};
-    new_texture.image = textureImage;
-    new_texture.image_memory = textureImageMemory;
-    new_texture.image_view = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
-    new_texture.descriptor_set = nullptr;
+    new_texture.image = texture_image;
+    new_texture.image_memory = texture_image_memory;
+    new_texture.image_view = image_view;
+    new_texture.descriptor_set = descriptor_set;
+
+    textures.emplace(image_path, new_texture);
 }

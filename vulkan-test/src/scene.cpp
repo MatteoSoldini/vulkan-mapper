@@ -64,10 +64,6 @@ Object* Scene::get_object_ptr(uint8_t object_id) {
 	return nullptr;
 }
 
-std::vector<Object*>* Scene::get_objects() {
-	return &objects;
-}
-
 std::vector<uint8_t> Scene::get_ids() {
 	std::vector<uint8_t> ids;
 

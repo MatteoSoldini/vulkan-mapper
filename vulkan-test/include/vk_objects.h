@@ -23,7 +23,7 @@ public:
 	// renderer
 	virtual std::vector<Vertex> get_vertices() = 0;
 	virtual std::vector<uint16_t> get_indices() = 0;
-	virtual uint32_t get_pipeline_index() = 0;
+	virtual std::string get_pipeline_name() = 0;
 
 	// events
 	virtual void on_hover_enter() = 0;
@@ -44,7 +44,7 @@ private:
 	std::vector<uint8_t> marker_ids;
 	float width;
 	float height;
-	std::string image_path = "src/test.jpg";
+	std::string image_path = "load";
 
 public:
 	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
@@ -55,7 +55,7 @@ public:
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
-	uint32_t get_pipeline_index() { return 0; };
+	std::string get_pipeline_name() { return "texture"; };
 
 	std::string get_image_path() {
 		return Plane::image_path;
@@ -94,7 +94,7 @@ public:
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
-	uint32_t get_pipeline_index() { return 1; };
+	std::string get_pipeline_name() { return "color"; };
 
 	void on_hover_enter();
 	void on_hover_leave();
