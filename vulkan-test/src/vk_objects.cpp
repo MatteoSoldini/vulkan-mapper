@@ -106,6 +106,13 @@ std::vector<uint16_t> Plane::get_indices() {
     };
 }
 
+std::string Plane::get_pipeline_name() {
+    if (Plane::get_image_path() != "") {
+        return "texture";
+    }
+    else return "color";
+}
+
 void Plane::set_image_path(std::string image_path) {
     Plane::image_path = image_path;
     scene_ptr->get_engine_ptr()->loadTexture(image_path);

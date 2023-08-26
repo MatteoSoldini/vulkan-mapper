@@ -44,7 +44,7 @@ private:
 	std::vector<uint8_t> marker_ids;
 	float width;
 	float height;
-	std::string image_path = "load";
+	std::string image_path = "";
 
 public:
 	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
@@ -55,7 +55,7 @@ public:
 
 	std::vector<Vertex> get_vertices();
 	std::vector<uint16_t> get_indices();
-	std::string get_pipeline_name() { return "texture"; };
+	std::string get_pipeline_name();
 
 	std::string get_image_path() {
 		return Plane::image_path;

@@ -20,7 +20,8 @@ void UI::draw_menu_bar() {
 // TO DO: filter file extensions
 std::string UI::open_file_dialog() {
     nfdchar_t* outPath = NULL;
-    nfdresult_t result = NFD_OpenDialog(NULL, NULL, &outPath);
+    nfdchar_t* filter_list = (nfdchar_t*)"png, jpg";
+    nfdresult_t result = NFD_OpenDialog(filter_list, NULL, &outPath);
     std::string path;
 
     if (result == NFD_OKAY) {
@@ -95,7 +96,12 @@ void UI::draw_function_window() {
 
                 ImGui::SeparatorText("Image");
 
-                if (ImGui::Button(plane_ptr->get_image_path().c_str())) {
+                std::string button_label = plane_ptr->get_image_path();
+                if (button_label.size() == 0) {
+                    button_label = "Load";
+                }
+
+                if (ImGui::Button(button_label.c_str())) {
                     std::string image_path = open_file_dialog();
                     if (!image_path.empty()) {
                         plane_ptr->set_image_path(image_path);
