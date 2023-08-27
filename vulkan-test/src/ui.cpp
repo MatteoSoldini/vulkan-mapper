@@ -17,7 +17,6 @@ void UI::draw_menu_bar() {
     }
 }
 
-// TO DO: filter file extensions
 std::string UI::open_file_dialog() {
     nfdchar_t* outPath = NULL;
     nfdchar_t* filter_list = (nfdchar_t*)"png, jpg";
@@ -44,24 +43,51 @@ UI::UI(Scene* scene, GLFWwindow* window) {
     UI::window = window;
 }
 
-void UI::draw_ui() {
+void UI::draw_ui(Viewport viewport) {
     draw_menu_bar();
 
-    draw_function_window();
+    // set fullscreen window
+    static ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->WorkPos);
+    ImGui::SetNextWindowSize(vp->WorkSize);
+
+    ImGui::Begin("App", nullptr, flags);
+
+    ImGui::BeginTable("table1", 2);
+    // set first first column width
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+
+    ImGui::TableNextRow();
+
+    // first column
+    ImGui::TableSetColumnIndex(0);
+    UI::menu();
+
+    // second column
+    ImGui::TableSetColumnIndex(1);
+    // viewport
+    ImGuiIO& io = ImGui::GetIO();
+    ImTextureID my_tex_id = io.Fonts->TexID;
+    float my_tex_w = (float)io.Fonts->TexWidth;
+    float my_tex_h = (float)io.Fonts->TexHeight;
+    ImGui::Image(viewport.descriptor_set, ImVec2(viewport.width, viewport.height));
+
+    ImGui::EndTable();
+
+    ImGui::End();
 
     if (show_demo_window) {
         ImGui::ShowDemoWindow();
     }
 }
 
-void UI::draw_function_window() {
+void UI::menu() {
     int selected_obj_id = scene->get_selected_obj_id();
-    
-    ImGui::Begin("App bar");
-    
+
     ImGui::BeginGroup();
-    
-    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()*2)); // Leave room for 1 line below us
+
+    ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2)); // Leave room for 1 line below us
 
     ImGui::SeparatorText("Debug");
 
@@ -72,15 +98,15 @@ void UI::draw_function_window() {
 
     bool closable_group = true;
 
-    for (uint8_t object_id: scene->get_ids()) {
+    for (uint8_t object_id : scene->get_ids()) {
         Object* object_ptr = scene->get_object_ptr(object_id);
-        
+
         if (object_ptr == nullptr) {
             continue;
         }
 
         Plane* plane_ptr = dynamic_cast<Plane*>(object_ptr);
-        
+
         if (plane_ptr != nullptr) {
             std::string name = "Plane " + std::to_string(plane_ptr->get_id());
             if (ImGui::CollapsingHeader(name.c_str())) {
@@ -91,7 +117,7 @@ void UI::draw_function_window() {
                     auto vertex_normal = glm::normalize(vertex.pos);
                     float flat_t = -1 / vertex_normal.z;
 
-                    ImGui::Text("x: %.3f \t y: %.3f", vertex_normal.x*flat_t, vertex_normal.y * flat_t);
+                    ImGui::Text("x: %.3f \t y: %.3f", vertex_normal.x * flat_t, vertex_normal.y * flat_t);
                 }
 
                 ImGui::SeparatorText("Image");
@@ -116,7 +142,7 @@ void UI::draw_function_window() {
                 ImGui::Separator();
                 ImGui::Spacing();
             }
-        }    
+        }
     }
 
     if (ImGui::Button("Add")) {
@@ -130,6 +156,4 @@ void UI::draw_function_window() {
     ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
 
     ImGui::EndGroup();
-
-    ImGui::End();
 }

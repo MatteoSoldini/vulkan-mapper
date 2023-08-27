@@ -103,8 +103,8 @@ private:
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
-    VkRenderPass renderPass;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+    //VkRenderPass renderPass;
+    //std::vector<VkFramebuffer> swapChainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
     VkBuffer vertexBuffer;
@@ -114,6 +114,12 @@ private:
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> uniform_buffer_sets;
     VkSampler textureSampler;
+
+    // offscreen rendering
+    VkRenderPass offscreenRenderpass;
+    VkFramebuffer offscreenFramebuffer;
+    VkImageView offscreenImageView;
+    VkDescriptorSet offscreenDescriptorSet;
 
     // textures
     std::map<std::string, Texture> textures;
@@ -202,13 +208,19 @@ private:
 
     void createSwapChain();
 
+    void createOffscreenImageView();
+
     void createImageViews();
+
+    void initOffscreenRender();
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
+    void createOffscreenRenderPass();
+
     void createRenderPass();
 
-    void createGraphicsPipeline();
+    void loadPipelines();
 
     void createFramebuffers(std::vector<VkFramebuffer>& frameBuffers, VkRenderPass renderPass);
 

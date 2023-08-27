@@ -571,6 +571,12 @@ VkShaderModule VulkanEngine::createShaderModule(const std::vector<char>& code) {
     return shaderModule;
 }
 
+void VulkanEngine::createOffscreenRenderPass() {
+    // TO DO: refactor for ImGui viewport (height, width)
+
+    
+}
+
 void VulkanEngine::createRenderPass() {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapChainImageFormat;
@@ -607,13 +613,14 @@ void VulkanEngine::createRenderPass() {
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
-
+    /*
     if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
     }
+    */
 }
 
-void VulkanEngine::createGraphicsPipeline() {
+void VulkanEngine::loadPipelines() {
     for (int i = 0; i < pipelines_to_load.size(); i++) {
         // load shaders
         auto vertShaderCode = readFile(pipelines_to_load[i].vertex_shader_file);
@@ -759,7 +766,7 @@ void VulkanEngine::createGraphicsPipeline() {
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = pipeline_layout;   // fixed-function stage
-        pipelineInfo.renderPass = renderPass;
+        pipelineInfo.renderPass = offscreenRenderpass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1; // Optional
@@ -841,7 +848,7 @@ void VulkanEngine::createCommandBuffers(std::vector<VkCommandBuffer>& commandBuf
     else {
         std::cout << "Command buffers created successfully" << std::endl;
     }
-}
+} 
 
 void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
@@ -855,8 +862,8 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.renderPass = offscreenRenderpass;
+    renderPassInfo.framebuffer = offscreenFramebuffer;
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapChainExtent;
 
@@ -965,7 +972,8 @@ void VulkanEngine::recreateSwapChain() {
 
     createSwapChain();
     createImageViews();
-    createFramebuffers(swapChainFramebuffers, renderPass);
+    
+    //createFramebuffers(swapChainFramebuffers, renderPass);
 
     // imgui
     for (size_t i = 0; i < imGuiFrameBuffers.size(); i++) {
@@ -1352,17 +1360,101 @@ void VulkanEngine::createDescriptorSets() {
     }
 }
 
+void VulkanEngine::initOffscreenRender() {
+    VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;   // don't know
+    
+    uint32_t width = swapChainExtent.width;
+    uint32_t height = swapChainExtent.height;
+
+    // create destination image
+    VkImage image;
+    VkDeviceMemory image_memory;
+    createImage(width, height, image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_memory);
+    
+    // create image view
+    offscreenImageView = createImageView(image, image_format);
+
+    // create renderpass
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = image_format;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &offscreenRenderpass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create render pass!");
+    }
+
+    // create framebuffer
+    VkImageView attachments[] = {
+        offscreenImageView
+    };
+
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = offscreenRenderpass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = attachments;
+    framebufferInfo.width = width;
+    framebufferInfo.height = height;
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &offscreenFramebuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create framebuffer!");
+    }
+}
+
 void VulkanEngine::initVulkan() {
+    // instance
     createInstance();
     createSurface();
+    
+    // device
     pickPhysicalDevice();
     createLogicalDevice();
+    
+    // presentation
     createSwapChain();
     createImageViews();
-    createRenderPass();
+    createSyncObjects();
+
+    // offscreen rendering
+    //createRenderPass();
+    initOffscreenRender();
     createDescriptorSetLayouts();
-    createGraphicsPipeline();
-    createFramebuffers(swapChainFramebuffers, renderPass);
+    loadPipelines();
+
+    //createFramebuffers(swapChainFramebuffers, renderPass);
     createCommandPool(&commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     createTextureSampler();
     createVertexBuffer();
@@ -1371,7 +1463,8 @@ void VulkanEngine::initVulkan() {
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers(commandBuffers, commandPool);
-    createSyncObjects();
+    
+    // ui
     initImGui();
 }
 
@@ -1486,20 +1579,24 @@ void VulkanEngine::drawFrame() {
 
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
-
     updateVertexBuffer();
     updateIndexBuffer();
-
     updateUniformBuffer(currentFrame);
+
+    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+
+    // offscreen render
+
+    //recordOffscreenRender(commandBuffers[currentFrame]);
+
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     // imgui
     recordImGuiCommandBuffer(imageIndex);
 
     // submit command buffer
-    std::array<VkCommandBuffer, 2> submitCommandBuffers = { 
-        commandBuffers[currentFrame],
+    std::array<VkCommandBuffer, 1> submitCommandBuffers = { 
+        //commandBuffers[currentFrame],
         imGuiCommandBuffers[currentFrame]
     };
 
@@ -1552,9 +1649,11 @@ void VulkanEngine::mainLoop() {
 }
 
 void VulkanEngine::cleanupSwapChain() {
-    for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+    /*
+    * for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
         vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
+    */
 
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
         vkDestroyImageView(device, swapChainImageViews[i], nullptr);
@@ -1601,7 +1700,7 @@ void VulkanEngine::cleanup() {
         vkDestroyPipelineLayout(device, pipeline.second.pipeline_layout, nullptr);
     }
 
-    vkDestroyRenderPass(device, renderPass, nullptr);
+    //vkDestroyRenderPass(device, renderPass, nullptr);
     
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -1622,7 +1721,7 @@ void VulkanEngine::cleanup() {
 }
 
 void VulkanEngine::initImGui() {
-    //1: create descriptor pool for IMGUI
+    // create descriptor pool
     // the size of the pool is very oversize, but it's copied from imgui demo itself.
     VkDescriptorPoolSize pool_sizes[] = {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -1657,12 +1756,12 @@ void VulkanEngine::initImGui() {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapChainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;    // draw over
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;    // clear before drawing
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // present when finished
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // necessary for the first render pass
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // translate to layout for presentation
 
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 0;
@@ -1777,6 +1876,8 @@ void VulkanEngine::initImGui() {
 
     vkDeviceWaitIdle(device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
+    
+    offscreenDescriptorSet = ImGui_ImplVulkan_AddTexture(textureSampler, offscreenImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
@@ -1784,7 +1885,12 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ui->draw_ui();
+    Viewport viewport{};
+    viewport.descriptor_set = offscreenDescriptorSet;
+    viewport.width = swapChainExtent.width;
+    viewport.height = swapChainExtent.height;
+
+    ui->draw_ui(viewport);
 
     ImGui::Render();
 
@@ -1808,7 +1914,7 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
         info.renderArea.extent = swapChainExtent;
 
         VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-        info.clearValueCount = 0;
+        info.clearValueCount = 1;
         info.pClearValues = &clearColor;
 
         vkCmdBeginRenderPass(imGuiCommandBuffers[currentFrame], &info, VK_SUBPASS_CONTENTS_INLINE);
