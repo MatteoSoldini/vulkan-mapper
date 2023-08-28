@@ -863,9 +863,10 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = offscreenRenderpass;
-    renderPassInfo.framebuffer = offscreenFramebuffer;
+    renderPassInfo.framebuffer = offscreenFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = swapChainExtent;
+    renderPassInfo.renderArea.extent.width = offscreenViewportWidth;
+    renderPassInfo.renderArea.extent.height = offscreenViewportHeight;
 
     VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
     renderPassInfo.clearValueCount = 1;
@@ -876,8 +877,8 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swapChainExtent.width);
-    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.width = static_cast<float>(offscreenViewportWidth);
+    viewport.height = static_cast<float>(offscreenViewportHeight);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
@@ -984,6 +985,65 @@ void VulkanEngine::recreateSwapChain() {
     //ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, width, height, g_MinImageCount);
 }
 
+void VulkanEngine::recreateOffscreenViewport(uint32_t width, uint32_t height) {
+    offscreenViewportWidth = width;
+    offscreenViewportHeight = height;
+
+    // clenup textures
+    /*
+    for (auto texture : offscreenTextures) {
+        vkDestroyImageView(device, texture.image_view, nullptr);
+        //vkDestroyImage(device, texture.image, nullptr);
+    }
+
+    // clenup framebuffers
+    for (auto offscreenFramebuffer : offscreenFramebuffers) {
+        vkDestroyFramebuffer(device, offscreenFramebuffer, nullptr);
+    }
+    */
+
+    offscreenFramebuffers.resize(swapChainImages.size());
+    offscreenTextures.resize(swapChainImages.size());
+
+    for (int i = 0; i < swapChainImages.size(); i++) {
+        // create destination image
+        VkImage image;
+        VkDeviceMemory image_memory;
+        createImage(offscreenViewportWidth, offscreenViewportHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_memory);
+
+        transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        // create image view
+        VkImageView image_view = createImageView(image, VK_FORMAT_R8G8B8A8_SRGB);
+
+        // create framebuffer
+        VkImageView attachments[] = {
+            image_view
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = offscreenRenderpass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = offscreenViewportWidth;
+        framebufferInfo.height = offscreenViewportHeight;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &offscreenFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create framebuffer!");
+        }
+
+        Texture texture{};
+        texture.image = image;
+        texture.image_memory = image_memory;
+        texture.image_view = image_view;
+        texture.descriptor_set = ImGui_ImplVulkan_AddTexture(textureSampler, image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        offscreenTextures[i] = texture;
+    }
+}
+
 void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1016,6 +1076,13 @@ void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImage
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
     else {
         throw std::invalid_argument("unsupported layout transition!");
@@ -1362,17 +1429,6 @@ void VulkanEngine::createDescriptorSets() {
 
 void VulkanEngine::initOffscreenRender() {
     VkFormat image_format = VK_FORMAT_R8G8B8A8_SRGB;   // don't know
-    
-    uint32_t width = swapChainExtent.width;
-    uint32_t height = swapChainExtent.height;
-
-    // create destination image
-    VkImage image;
-    VkDeviceMemory image_memory;
-    createImage(width, height, image_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_memory);
-    
-    // create image view
-    offscreenImageView = createImageView(image, image_format);
 
     // create renderpass
     VkAttachmentDescription colorAttachment{};
@@ -1383,7 +1439,7 @@ void VulkanEngine::initOffscreenRender() {
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 0;
@@ -1415,23 +1471,7 @@ void VulkanEngine::initOffscreenRender() {
         throw std::runtime_error("failed to create render pass!");
     }
 
-    // create framebuffer
-    VkImageView attachments[] = {
-        offscreenImageView
-    };
-
-    VkFramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = offscreenRenderpass;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.pAttachments = attachments;
-    framebufferInfo.width = width;
-    framebufferInfo.height = height;
-    framebufferInfo.layers = 1;
-
-    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &offscreenFramebuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create framebuffer!");
-    }
+    recreateOffscreenViewport(swapChainExtent.width, swapChainExtent.height);
 }
 
 void VulkanEngine::initVulkan() {
@@ -1448,24 +1488,25 @@ void VulkanEngine::initVulkan() {
     createImageViews();
     createSyncObjects();
 
+    // ui
+    initImGui();
+
     // offscreen rendering
+    createTextureSampler();
     //createRenderPass();
-    initOffscreenRender();
     createDescriptorSetLayouts();
-    loadPipelines();
 
     //createFramebuffers(swapChainFramebuffers, renderPass);
     createCommandPool(&commandPool, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    createTextureSampler();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers(commandBuffers, commandPool);
-    
-    // ui
-    initImGui();
+
+    initOffscreenRender();
+    loadPipelines();
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
@@ -1477,7 +1518,7 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
     ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     //ubo.proj = glm::ortho(-.5f* aspect, .5f* aspect, -.5f, .5f, -10.0f, 10.0f);
-    ubo.proj = glm::perspective(glm::radians(60.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.0f, 10.0f);
+    ubo.proj = glm::perspective(glm::radians(60.0f), offscreenViewportWidth / (float)offscreenViewportHeight, 0.0f, 10.0f);
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -1579,24 +1620,16 @@ void VulkanEngine::drawFrame() {
 
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    updateVertexBuffer();
-    updateIndexBuffer();
-    updateUniformBuffer(currentFrame);
-
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 
-    // offscreen render
-
-    //recordOffscreenRender(commandBuffers[currentFrame]);
-
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+    renderViewport(imageIndex);
 
     // imgui
     recordImGuiCommandBuffer(imageIndex);
 
     // submit command buffer
-    std::array<VkCommandBuffer, 1> submitCommandBuffers = { 
-        //commandBuffers[currentFrame],
+    std::array<VkCommandBuffer, 2> submitCommandBuffers = { 
+        commandBuffers[currentFrame],
         imGuiCommandBuffers[currentFrame]
     };
 
@@ -1876,8 +1909,6 @@ void VulkanEngine::initImGui() {
 
     vkDeviceWaitIdle(device);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
-    
-    offscreenDescriptorSet = ImGui_ImplVulkan_AddTexture(textureSampler, offscreenImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
@@ -1886,9 +1917,9 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     ImGui::NewFrame();
 
     Viewport viewport{};
-    viewport.descriptor_set = offscreenDescriptorSet;
-    viewport.width = swapChainExtent.width;
-    viewport.height = swapChainExtent.height;
+    viewport.descriptor_set = offscreenTextures[imageIndex].descriptor_set;
+    viewport.width = (float)offscreenViewportWidth;
+    viewport.height = (float)offscreenViewportHeight;
 
     ui->draw_ui(viewport);
 
@@ -2021,4 +2052,12 @@ void VulkanEngine::loadTexture(std::string image_path) {
     new_texture.descriptor_set = descriptor_set;
 
     textures.emplace(image_path, new_texture);
+}
+
+void VulkanEngine::renderViewport(uint32_t imageIndex) {
+    updateVertexBuffer();
+    updateIndexBuffer();
+    updateUniformBuffer(currentFrame);
+
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 }

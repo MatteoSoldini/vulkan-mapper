@@ -117,9 +117,10 @@ private:
 
     // offscreen rendering
     VkRenderPass offscreenRenderpass;
-    VkFramebuffer offscreenFramebuffer;
-    VkImageView offscreenImageView;
-    VkDescriptorSet offscreenDescriptorSet;
+    std::vector<Texture> offscreenTextures;
+    std::vector<VkFramebuffer> offscreenFramebuffers;
+    uint32_t offscreenViewportWidth = 0;
+    uint32_t offscreenViewportHeight = 0;
 
     // textures
     std::map<std::string, Texture> textures;
@@ -208,8 +209,6 @@ private:
 
     void createSwapChain();
 
-    void createOffscreenImageView();
-
     void createImageViews();
 
     void initOffscreenRender();
@@ -234,15 +233,13 @@ private:
 
     void recreateSwapChain();
 
+    void recreateOffscreenViewport(uint32_t width, uint32_t height);
+
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
-    //void createTextureImage();
-
-    //void createTextureImageView();
 
     void createTextureSampler();
 
@@ -282,4 +279,6 @@ private:
 
 public:
     void loadTexture(std::string image_path);
+
+    void renderViewport(uint32_t imageIndex);
 };

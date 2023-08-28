@@ -67,11 +67,8 @@ void UI::draw_ui(Viewport viewport) {
     // second column
     ImGui::TableSetColumnIndex(1);
     // viewport
-    ImGuiIO& io = ImGui::GetIO();
-    ImTextureID my_tex_id = io.Fonts->TexID;
-    float my_tex_w = (float)io.Fonts->TexWidth;
-    float my_tex_h = (float)io.Fonts->TexHeight;
-    ImGui::Image(viewport.descriptor_set, ImVec2(viewport.width, viewport.height));
+    ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+    ImGui::Image(viewport.descriptor_set, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
 
     ImGui::EndTable();
 
