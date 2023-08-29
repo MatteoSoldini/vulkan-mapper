@@ -13,9 +13,9 @@ private:
 	uint8_t id;
 
 public:
-	// scene
-	uint8_t get_id() { return Object::id; };
-	void set_id(uint8_t id) {
+	// pScene
+	uint8_t getId() { return Object::id; };
+	void setId(uint8_t id) {
 		Object::id = id;
 	}
 	virtual void on_remove() = 0;
@@ -30,7 +30,7 @@ public:
 	virtual void on_hover_leave() = 0;
 	virtual void on_select() = 0;
 	virtual void on_release() = 0;
-	virtual void on_move(glm::vec4 ray_world) = 0;
+	virtual void onMove(float deltaX, float deltaY) = 0;
 
 	// config
 	virtual bool selectable() = 0;
@@ -41,7 +41,7 @@ private:
 	float pos_x = 0;
 	float pos_y = 0;
 	std::vector<Vertex> vertices;
-	std::vector<uint8_t> marker_ids;
+	std::vector<uint8_t> markerIds;
 	float width;
 	float height;
 	std::string image_path = "";
@@ -49,7 +49,7 @@ private:
 public:
 	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
 	
-	Scene* scene_ptr;
+	Scene* pScene;
 
 	void on_remove();
 
@@ -67,8 +67,8 @@ public:
 	void on_hover_leave();
 	void on_select();
 	void on_release();
-	void on_move(glm::vec4 ray_world);
-	void move_vertex(unsigned int vertex_id, glm::vec4 ray_world);
+	void onMove(float deltaX, float deltaY);
+	void moveVertex(unsigned int vertex_id);
 	bool selectable() { return true; };
 };
 
@@ -100,7 +100,7 @@ public:
 	void on_hover_leave();
 	void on_select();
 	void on_release();
-	void on_move(glm::vec4 ray_world);
+	void onMove(float deltaX, float deltaY);
 	bool selectable() { return true; };
 	glm::vec2 get_position();
 	uint16_t get_vertex_id();

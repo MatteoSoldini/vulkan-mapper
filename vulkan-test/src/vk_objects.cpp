@@ -59,16 +59,14 @@ uint16_t Marker::get_vertex_id() {
     return Marker::vertex_id;
 }
 
-void Marker::on_move(glm::vec4 ray_world) {
-    float t = -1 / ray_world.z;
+void Marker::onMove(float deltaX, float deltaY) {
+    Marker::pos_x += deltaX;
+    Marker::pos_y += deltaY;
 
-    Marker::pos_x = ray_world.x * t;
-    Marker::pos_y = ray_world.y * t;
-
-    Plane* parent = dynamic_cast<Plane*>(scene_ptr->get_object_ptr(parent_id));
+    Plane* parent = dynamic_cast<Plane*>(scene_ptr->getObjectPointer(parent_id));
     
     if (parent != nullptr)
-        parent->move_vertex(vertex_id, ray_world);
+        parent->moveVertex(vertex_id);
 }
 
 // Plane
@@ -87,12 +85,12 @@ Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos
 
     Plane::pos_x = pos_x;
     Plane::pos_y = pos_y;
-    Plane::scene_ptr = scene_ptr;
+    Plane::pScene = scene_ptr;
 }
 
 void Plane::on_remove() {
-    for (auto marker_id : marker_ids) {
-        scene_ptr->remove_object(marker_id);
+    for (auto marker_id : markerIds) {
+        pScene->removeObject(marker_id);
     }
 }
 
@@ -115,7 +113,7 @@ std::string Plane::get_pipeline_name() {
 
 void Plane::set_image_path(std::string image_path) {
     Plane::image_path = image_path;
-    scene_ptr->get_engine_ptr()->loadTexture(image_path);
+    pScene->getEnginePointer()->loadTexture(image_path);
 }
 
 void Plane::on_hover_enter() {
@@ -136,7 +134,7 @@ void Plane::on_select() {
         // camera at 0,0,0
         glm::vec3 ray = glm::normalize(vertices[i].pos);
         float flat_t = -1.0f / ray.z;
-        marker_ids.push_back(scene_ptr->add_object(new Marker(scene_ptr, ray.x * flat_t, ray.y * flat_t, { 1.0f, 1.0f,1.0f }, Plane::get_id(), i)));
+        markerIds.push_back(pScene->addObject(new Marker(pScene, ray.x * flat_t, ray.y * flat_t, { 1.0f, 1.0f,1.0f }, Plane::getId(), i)));
     }
 }
 
@@ -148,39 +146,23 @@ void Plane::on_release() {
     }
     
     // remove markers
-    for (auto marker_id : marker_ids) {
-        scene_ptr->remove_object(marker_id);
+    for (auto marker_id : markerIds) {
+        pScene->removeObject(marker_id);
     }
-    marker_ids.clear();
+    markerIds.clear();
 }
 
-void Plane::on_move(glm::vec4 ray_world) {
-    float t = -1 / ray_world.z;
+void Plane::onMove(float deltaX, float deltaY) {
+    for (auto markerId : markerIds) {
+        Marker* pMarker = dynamic_cast<Marker*>(pScene->getObjectPointer(markerId));
 
-    float delta_pos_x = ray_world.x * t - Plane::pos_x;
-    float delta_pos_y = ray_world.y * t - Plane::pos_y;
-    
-    Plane::pos_x = ray_world.x * t;
-    Plane::pos_y = ray_world.y * t;
+        if (pMarker == nullptr) break;
 
-    for (auto& vertex : vertices) {
-        vertex.pos.x += delta_pos_x;
-        vertex.pos.y += delta_pos_y;
-    }
-
-    if (marker_ids.size() > 0) {
-        auto vertices = get_vertices();
-           
-        // assuming vertex number same as marker number
-        for (int i = 0; i < vertices.size(); i++) {
-            auto vertex_normal = glm::normalize(vertices[i].pos);
-
-            scene_ptr->get_object_ptr(marker_ids[i])->on_move({ vertex_normal.x, vertex_normal.y, vertex_normal.z, 0.0f });
-        }
+        pMarker->onMove(deltaX, deltaY);
     }
 }
 
-void compute_homography_matrix(glm::mat3* H, glm::vec3* source, glm::vec3* target) {
+void computeHomographyMatrix(glm::mat3* H, glm::vec3* source, glm::vec3* target) {
     // Construct equations system
     const unsigned int vertex_count = 4;
     const int m = 8, n = 9;
@@ -331,7 +313,7 @@ void compute_homography_matrix(glm::mat3* H, glm::vec3* source, glm::vec3* targe
     };
 }
 
-void Plane::move_vertex(unsigned int vertex_id, glm::vec4 ray_world) {
+void Plane::moveVertex(unsigned int vertex_id) {
     const int vertices_count = 4;
 
     glm::vec3 source[4] = {
@@ -342,8 +324,8 @@ void Plane::move_vertex(unsigned int vertex_id, glm::vec4 ray_world) {
     };
 
     glm::vec3 target[4];
-    for (auto marker_id : marker_ids) {
-        Marker *rect_ptr = dynamic_cast<Marker*>(scene_ptr->get_object_ptr(marker_id));
+    for (auto marker_id : markerIds) {
+        Marker *rect_ptr = dynamic_cast<Marker*>(pScene->getObjectPointer(marker_id));
         glm::vec2 position = rect_ptr->get_position();
         uint16_t vertex_id = rect_ptr->get_vertex_id();
         target[vertex_id].x = position.x;
@@ -353,7 +335,7 @@ void Plane::move_vertex(unsigned int vertex_id, glm::vec4 ray_world) {
 
     glm::mat3 H;
 
-    compute_homography_matrix(&H, source, target);
+    computeHomographyMatrix(&H, source, target);
 
     // Apply transformatin to vertices
     for (int i = 0; i < vertices_count; i++) {

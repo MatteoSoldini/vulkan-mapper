@@ -24,7 +24,7 @@
 #include "../include/ui.h"
 
 VulkanEngine::VulkanEngine() {
-    VulkanEngine::scene = new Scene(this);
+    VulkanEngine::pScene = new Scene(this);
 }
 
 uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -161,17 +161,11 @@ bool VulkanEngine::checkValidationLayerSupport() {
 void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
     auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
-    app->scene->window_resize_callback(width, height);
-}
-
-void VulkanEngine::cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
-    auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
-    app->scene->cursor_position_callback(xpos, ypos);
 }
 
 void VulkanEngine::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
-    app->scene->mouse_button_callback(button, action, mods);
+    app->pScene->mouseButtonCallback(button, action, mods);
 }
 
 void VulkanEngine::initWindow() {
@@ -180,22 +174,21 @@ void VulkanEngine::initWindow() {
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
 
-    // create scene
+    // create pScene
     std::cout << "init window" << std::endl;
-    scene->window_resize_callback(WIDTH, HEIGHT);
 
     // resize callback
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 
     // cursor position callback
-    glfwSetCursorPosCallback(window, cursor_position_callback);
+    //glfwSetCursorPosCallback(window, cursor_position_callback);
 
     // mouse button callback
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     // ui
-    ui = new UI(scene, window);
+    pUi = new UI(pScene, window);
 }
 
 
@@ -621,10 +614,10 @@ void VulkanEngine::createRenderPass() {
 }
 
 void VulkanEngine::loadPipelines() {
-    for (int i = 0; i < pipelines_to_load.size(); i++) {
+    for (int i = 0; i < pipelinesToLoad.size(); i++) {
         // load shaders
-        auto vertShaderCode = readFile(pipelines_to_load[i].vertex_shader_file);
-        auto fragShaderCode = readFile(pipelines_to_load[i].fragment_shader_file);
+        auto vertShaderCode = readFile(pipelinesToLoad[i].vertex_shader_file);
+        auto fragShaderCode = readFile(pipelinesToLoad[i].fragment_shader_file);
 
         // create shaders
         VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
@@ -741,7 +734,7 @@ void VulkanEngine::loadPipelines() {
         colorBlending.blendConstants[3] = 0.0f; // Optional
 
         // create pipeline layout
-        std::vector<VkDescriptorSetLayout> layouts = { uniform_buffer_layout, single_texture_layout };
+        std::vector<VkDescriptorSetLayout> layouts = { uniformBufferLayout, singleTextureLayout };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
@@ -788,7 +781,7 @@ void VulkanEngine::loadPipelines() {
         new_pipeline.pipeline = pipeline;
         new_pipeline.pipeline_layout = pipeline_layout;
 
-        pipelines.emplace(pipelines_to_load[i].name, new_pipeline);
+        pipelines.emplace(pipelinesToLoad[i].name, new_pipeline);
     }
 }
 
@@ -897,11 +890,11 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     // looping objects
     std::string last_pipeline_name = "";
 
-    auto object_ids = scene->get_ids();
+    auto object_ids = pScene->getIds();
     int index = 0;
 
     for (auto object_id : object_ids) {
-        auto object = scene->get_object_ptr(object_id);
+        auto object = pScene->getObjectPointer(object_id);
 
         // bind new pipeline if needed
         std::string pipeline_name = object->get_pipeline_name();
@@ -1232,10 +1225,10 @@ void VulkanEngine::createVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
     
-    auto object_ids = scene->get_ids();
+    auto object_ids = pScene->getIds();
 
     for (auto object_id : object_ids) {
-        std::vector<Vertex> obj_vertices = scene->get_object_ptr(object_id)->get_vertices();
+        std::vector<Vertex> obj_vertices = pScene->getObjectPointer(object_id)->get_vertices();
 
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
@@ -1269,10 +1262,10 @@ void VulkanEngine::createIndexBuffer() {
     std::vector<uint16_t> indices;
     
     int offset = 0;
-    auto object_ids = scene->get_ids();
+    auto object_ids = pScene->getIds();
 
     for (auto object_id : object_ids) {
-        std::vector<uint16_t> obj_indices = scene->get_object_ptr(object_id)->get_indices();
+        std::vector<uint16_t> obj_indices = pScene->getObjectPointer(object_id)->get_indices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1282,7 +1275,7 @@ void VulkanEngine::createIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += scene->get_object_ptr(object_id)->get_vertices().size();
+        offset += pScene->getObjectPointer(object_id)->get_vertices().size();
     }
 
     // create buffer
@@ -1323,7 +1316,7 @@ void VulkanEngine::createDescriptorSetLayouts() {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &uniform_buffer_layout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &uniformBufferLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 
@@ -1339,7 +1332,7 @@ void VulkanEngine::createDescriptorSetLayouts() {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &samplerLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &single_texture_layout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &singleTextureLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 }
@@ -1377,7 +1370,7 @@ void VulkanEngine::createDescriptorPool() {
 }
 
 void VulkanEngine::createDescriptorSets() {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uniform_buffer_layout);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uniformBufferLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
@@ -1536,9 +1529,9 @@ void VulkanEngine::updateVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
 
-    auto object_ids = scene->get_ids();
+    auto object_ids = pScene->getIds();
     for (auto object_id : object_ids) {
-        std::vector<Vertex> obj_vertices = scene->get_object_ptr(object_id)->get_vertices();
+        std::vector<Vertex> obj_vertices = pScene->getObjectPointer(object_id)->get_vertices();
 
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
@@ -1568,9 +1561,9 @@ void VulkanEngine::updateIndexBuffer() {
     std::vector<uint16_t> indices;
 
     int offset = 0;
-    auto object_ids = scene->get_ids();
+    auto object_ids = pScene->getIds();
     for (auto object_id : object_ids) {
-        std::vector<uint16_t> obj_indices = scene->get_object_ptr(object_id)->get_indices();
+        std::vector<uint16_t> obj_indices = pScene->getObjectPointer(object_id)->get_indices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1580,7 +1573,7 @@ void VulkanEngine::updateIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += scene->get_object_ptr(object_id)->get_vertices().size();
+        offset += pScene->getObjectPointer(object_id)->get_vertices().size();
     }
 
     if (indices_size == 0) return;
@@ -1621,8 +1614,6 @@ void VulkanEngine::drawFrame() {
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
-
-    renderViewport(imageIndex);
 
     // imgui
     recordImGuiCommandBuffer(imageIndex);
@@ -1720,7 +1711,7 @@ void VulkanEngine::cleanup() {
     // Destroy descriptor sets & pools
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
-    vkDestroyDescriptorSetLayout(device, uniform_buffer_layout, nullptr);
+    vkDestroyDescriptorSetLayout(device, uniformBufferLayout, nullptr);
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -1917,11 +1908,11 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     ImGui::NewFrame();
 
     Viewport viewport{};
-    viewport.descriptor_set = offscreenTextures[imageIndex].descriptor_set;
+    viewport.descriptor_set = offscreenTextures[currentFrame].descriptor_set;
     viewport.width = (float)offscreenViewportWidth;
     viewport.height = (float)offscreenViewportHeight;
 
-    ui->draw_ui(viewport);
+    pUi->draw_ui(viewport);
 
     ImGui::Render();
 
@@ -2019,7 +2010,7 @@ void VulkanEngine::loadTexture(std::string image_path) {
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &single_texture_layout;
+    allocInfo.pSetLayouts = &singleTextureLayout;
 
     VkDescriptorSet descriptor_set;
     if (vkAllocateDescriptorSets(device, &allocInfo, &descriptor_set) != VK_SUCCESS) {
@@ -2054,10 +2045,35 @@ void VulkanEngine::loadTexture(std::string image_path) {
     textures.emplace(image_path, new_texture);
 }
 
-void VulkanEngine::renderViewport(uint32_t imageIndex) {
+void VulkanEngine::renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY) {
+    // pass cursor position to scene
+    
+    // Transform NDC to camera-space coordinate
+    // inverse view transformation not needed since camera is fixed
+
+    // make cursor coordinates from -1 to +1
+    float ndcX = ((float)cursorPosX / offscreenViewportWidth) * 2.f - 1.f;
+    float ndcY = -((float)cursorPosY / offscreenViewportHeight) * 2.f + 1.f;
+
+    // inverse of projection matrix
+    glm::vec4 clipCoords = { ndcX, ndcY, -1.0f, 1.0f };
+    glm::mat4 proj = glm::perspective(glm::radians(60.0f), offscreenViewportWidth / (float)offscreenViewportHeight, 0.1f, 10.0f);
+    glm::mat4 projInv = glm::inverse(proj);
+    glm::vec4 cameraCoords = projInv * clipCoords;
+    glm::mat4 viewInv = glm::inverse(glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+    glm::vec4 mouseRay = glm::normalize(cameraCoords * viewInv);
+    pScene->mouseRayCallback(mouseRay);
+    
+    // resize viewport
+    if (offscreenViewportWidth != viewportWidth || offscreenViewportHeight != viewportHeight) {
+        recreateOffscreenViewport(viewportWidth, viewportHeight);
+    }
+    
+    // update data
     updateVertexBuffer();
     updateIndexBuffer();
     updateUniformBuffer(currentFrame);
 
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+    // render
+    recordCommandBuffer(commandBuffers[currentFrame], currentFrame);
 }

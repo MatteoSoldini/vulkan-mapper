@@ -39,7 +39,7 @@ std::string UI::open_file_dialog() {
 }
 
 UI::UI(Scene* scene, GLFWwindow* window) {
-    UI::scene = scene;
+    UI::pScene = scene;
     UI::window = window;
 }
 
@@ -66,9 +66,17 @@ void UI::draw_ui(Viewport viewport) {
 
     // second column
     ImGui::TableSetColumnIndex(1);
+    
     // viewport
+    ImGuiIO& io = ImGui::GetIO();
+    ImVec2 pos = ImGui::GetCursorScreenPos();
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+
+    // render viewport
+    pScene->getEnginePointer()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+
     ImGui::Image(viewport.descriptor_set, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+    ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x - pos.x, io.MousePos.y - pos.y);
 
     ImGui::EndTable();
 
@@ -80,23 +88,26 @@ void UI::draw_ui(Viewport viewport) {
 }
 
 void UI::menu() {
-    int selected_obj_id = scene->get_selected_obj_id();
-
     ImGui::BeginGroup();
 
     ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2)); // Leave room for 1 line below us
 
     ImGui::SeparatorText("Debug");
 
-    ImGui::Text("Selected: %i", selected_obj_id);
-    ImGui::Text("Hovering: %i", scene->get_hovering_obj_id());
+    ImGui::Text("Selected: %i", pScene->getSelectedObjectId());
+    ImGui::Text("Hovering: %i", pScene->getHoveringObjectId());
+    ImGui::Text("Dragging: %i", pScene->getDragginObjectId());
+
+    
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y);
 
     ImGui::SeparatorText("Planes");
 
     bool closable_group = true;
 
-    for (uint8_t object_id : scene->get_ids()) {
-        Object* object_ptr = scene->get_object_ptr(object_id);
+    for (uint8_t object_id : pScene->getIds()) {
+        Object* object_ptr = pScene->getObjectPointer(object_id);
 
         if (object_ptr == nullptr) {
             continue;
@@ -105,7 +116,7 @@ void UI::menu() {
         Plane* plane_ptr = dynamic_cast<Plane*>(object_ptr);
 
         if (plane_ptr != nullptr) {
-            std::string name = "Plane " + std::to_string(plane_ptr->get_id());
+            std::string name = "Plane " + std::to_string(plane_ptr->getId());
             if (ImGui::CollapsingHeader(name.c_str())) {
                 ImGui::SeparatorText("2D vertices");
                 auto plane_vertices = plane_ptr->get_vertices();
@@ -133,7 +144,7 @@ void UI::menu() {
 
                 ImGui::SeparatorText("Functions");
                 if (ImGui::Button("Remove")) {
-                    scene->remove_object(plane_ptr->get_id());
+                    pScene->removeObject(plane_ptr->getId());
                 }
 
                 ImGui::Separator();
@@ -144,7 +155,7 @@ void UI::menu() {
 
     if (ImGui::Button("Add")) {
         // TO DO: open file dialog 
-        scene->add_object(new Plane(scene, .3f, .3f, 0.0f, 0.0f));
+        pScene->addObject(new Plane(pScene, .3f, .3f, 0.0f, 0.0f));
     }
 
     ImGui::EndChild();

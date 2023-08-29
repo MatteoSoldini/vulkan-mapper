@@ -75,7 +75,7 @@ private:
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
-    const std::vector<PipelineToLoad> pipelines_to_load = {
+    const std::vector<PipelineToLoad> pipelinesToLoad = {
         PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv"},
         PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv"},
     };
@@ -129,8 +129,8 @@ private:
     std::map<std::string, Pipeline> pipelines;
 
     // descriptor set layouts
-    VkDescriptorSetLayout single_texture_layout;
-    VkDescriptorSetLayout uniform_buffer_layout;
+    VkDescriptorSetLayout singleTextureLayout;
+    VkDescriptorSetLayout uniformBufferLayout;
 
     // uniform buffer
     std::vector<VkBuffer> uniformBuffers;
@@ -140,7 +140,7 @@ private:
     bool framebufferResized = false;
 
     // scene
-    Scene* scene;
+    Scene* pScene;
 
     // imgui
     VkCommandPool imGuiCommandPool;
@@ -149,7 +149,7 @@ private:
     std::vector<VkFramebuffer> imGuiFrameBuffers;
     VkDescriptorPool imguiDescriptorPool;
 
-    UI* ui;
+    UI* pUi;
 
     // Syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -179,8 +179,6 @@ private:
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
-    static void cursor_position_callback(GLFWwindow * window, double xpos, double ypos);
-    
     static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
     void initWindow();
@@ -278,7 +276,7 @@ private:
     void imGuiCleanup();
 
 public:
-    void loadTexture(std::string image_path);
+    void loadTexture(std::string imagePath);
 
-    void renderViewport(uint32_t imageIndex);
+    void renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
 };

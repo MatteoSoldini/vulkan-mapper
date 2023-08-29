@@ -13,33 +13,34 @@ class VulkanEngine;
 
 class Scene {
 private:
-	unsigned int window_width = 0;
-	unsigned int window_height = 0;
+	int hoveringObjId = -1;	// mouse hover
+	int selectedObjId = -1;	// clicked
+	int draggingObjId = -1;
+	int lastDragginObjId = -1;
 
-	int hovering_obj_id = -1;	// mouse hover
-	int selected_obj_id = -1;	// clicked
-	int dragging_obj_id = -1;
+	float lastDraggingX = 0.0f;
+	float lastDraggingY = 0.0f;
 
-	std::vector<Object*> objects;
+	std::vector<Object*> pObjects;
 
-	VulkanEngine* engine;
+	VulkanEngine* pEngine;
 
 public:
-	Scene(VulkanEngine* engine);
+	Scene(VulkanEngine* pEngine);
 
-	int get_selected_obj_id();
-	int get_hovering_obj_id();
+	int getSelectedObjectId() { return selectedObjId; };
+	int getHoveringObjectId() { return hoveringObjId; };
+	int getDragginObjectId() { return draggingObjId; };
 
-	uint8_t add_object(Object* object_ptr);
-	void remove_object(uint8_t object_id);
-	Object* get_object_ptr(uint8_t object_id);
-	std::vector<uint8_t> get_ids();
-	double triangle_area(glm::vec2 a, glm::vec2 b, glm::vec2 c);
-	bool point_inside_triangle(glm::vec2 point, std::vector<glm::vec2> triangle);
-	void cursor_position_callback(int xpos, int ypos);
-	void mouse_button_callback(int button, int action, int mods);
-	void window_resize_callback(unsigned int width, unsigned int height);
-	VulkanEngine* get_engine_ptr() {
-		return engine;
+	uint8_t addObject(Object* pObject);
+	void removeObject(uint8_t objectId);
+	Object* getObjectPointer(uint8_t objectId);
+	std::vector<uint8_t> getIds();
+	double triangleArea(glm::vec2 a, glm::vec2 b, glm::vec2 c);
+	bool pointInsideTriangle(glm::vec2 point, std::vector<glm::vec2> triangle);
+	void mouseRayCallback(glm::vec4 mouseRay);
+	void mouseButtonCallback(int button, int action, int mods);
+	VulkanEngine* getEnginePointer() {
+		return pEngine;
 	};
 };

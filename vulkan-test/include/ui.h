@@ -13,7 +13,7 @@ struct Viewport {
 class UI {
 private:
 	bool show_demo_window = false;
-	Scene* scene;
+	Scene* pScene;
 	GLFWwindow* window;
 
 	void menu();
