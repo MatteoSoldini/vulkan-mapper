@@ -18,18 +18,18 @@ public:
 	void setId(uint8_t id) {
 		Object::id = id;
 	}
-	virtual void on_remove() = 0;
+	virtual void beforeRemove() = 0;
 
 	// renderer
-	virtual std::vector<Vertex> get_vertices() = 0;
-	virtual std::vector<uint16_t> get_indices() = 0;
-	virtual std::string get_pipeline_name() = 0;
+	virtual std::vector<Vertex> getVertices() = 0;
+	virtual std::vector<uint16_t> getIndices() = 0;
+	virtual std::string getPipelineName() = 0;
 
 	// events
-	virtual void on_hover_enter() = 0;
-	virtual void on_hover_leave() = 0;
-	virtual void on_select() = 0;
-	virtual void on_release() = 0;
+	virtual void hoveringStart() = 0;
+	virtual void hoveringStop() = 0;
+	virtual void onSelect() = 0;
+	virtual void onRelease() = 0;
 	virtual void onMove(float deltaX, float deltaY) = 0;
 
 	// config
@@ -51,11 +51,11 @@ public:
 	
 	Scene* pScene;
 
-	void on_remove();
+	void beforeRemove();
 
-	std::vector<Vertex> get_vertices();
-	std::vector<uint16_t> get_indices();
-	std::string get_pipeline_name();
+	std::vector<Vertex> getVertices();
+	std::vector<uint16_t> getIndices();
+	std::string getPipelineName();
 
 	std::string get_image_path() {
 		return Plane::image_path;
@@ -63,10 +63,10 @@ public:
 
 	void set_image_path(std::string image_path);
 
-	void on_hover_enter();
-	void on_hover_leave();
-	void on_select();
-	void on_release();
+	void hoveringStart();
+	void hoveringStop();
+	void onSelect();
+	void onRelease();
 	void onMove(float deltaX, float deltaY);
 	void moveVertex(unsigned int vertex_id);
 	bool selectable() { return true; };
@@ -88,20 +88,40 @@ public:
 	
 	Scene* scene_ptr;
 
-	void on_remove() {
-		return;
-	};
+	void beforeRemove() { return; };
 
-	std::vector<Vertex> get_vertices();
-	std::vector<uint16_t> get_indices();
-	std::string get_pipeline_name() { return "color"; };
+	std::vector<Vertex> getVertices();
+	std::vector<uint16_t> getIndices();
+	std::string getPipelineName() { return "color"; };
 
-	void on_hover_enter();
-	void on_hover_leave();
-	void on_select();
-	void on_release();
+	void hoveringStart();
+	void hoveringStop();
+	void onSelect();
+	void onRelease();
 	void onMove(float deltaX, float deltaY);
 	bool selectable() { return true; };
 	glm::vec2 get_position();
 	uint16_t get_vertex_id();
+};
+
+class Line : public Object {
+private:
+
+public:
+	// renderer
+	std::vector<Vertex> getVertices();
+	std::vector<uint16_t> getIndices();
+	std::string getPipelineName() { return "line"; };
+
+	void beforeRemove() { return; };
+
+	// events
+	void hoveringStart() { return; };
+	virtual void hoveringStop() { return; };
+	virtual void onSelect() { return; };
+	virtual void onRelease() { return; };
+	virtual void onMove(float deltaX, float deltaY) { return; };
+
+	// config
+	bool selectable() { return true; };
 };

@@ -32,10 +32,10 @@ uint8_t Scene::addObject(Object* object_ptr) {
 void Scene::removeObject(uint8_t object_id) {
 	for (Object* object_ptr : pObjects) {
 		if (object_ptr->getId() == object_id) {
-			object_ptr->on_remove();
+			object_ptr->beforeRemove();
 
 			// remove object from vector
-			// position might have changed after on_remove()
+			// position might have changed after beforeRemove()
 			for (int i = 0; i < pObjects.size(); i++) {
 				if (pObjects[i]->getId() == object_id) {
 					pObjects.erase(pObjects.begin() + i);
@@ -104,41 +104,46 @@ void Scene::mouseRayCallback(glm::vec4 mouseRay) {
 	int new_hovering_obj_id = -1; // reset
 
 	for (int o = pObjects.size() - 1; o >= 0; o--) {
-		std::vector<Vertex> vertices = pObjects[o]->get_vertices();
-		std::vector<uint16_t> indices = pObjects[o]->get_indices();
+		std::vector<Vertex> vertices = pObjects[o]->getVertices();
+		std::vector<uint16_t> indices = pObjects[o]->getIndices();
 		
 		if (new_hovering_obj_id >= 0) break;
 
-		for (int i = 0; i < indices.size(); i += 3) {
-			std::vector<glm::vec2> triangle;
-			triangle.resize(3);
+		// skip if line
+		if (pObjects[o]->getPipelineName() != "line") {
+			for (int i = 0; i < indices.size(); i += 3) {
+				std::vector<glm::vec2> triangle;
+				triangle.resize(3);
 
-			for (int j = 0; j < 3; j++) {
-				auto vertex_normal = glm::normalize(vertices[indices[i + j]].pos);
-				float flat_t = -1 / vertex_normal.z;
-				triangle[j] = glm::vec2({ vertex_normal.x * flat_t, vertex_normal.y * flat_t });
-			}
-
-			// Cursor is hovering obj
-			if (pointInsideTriangle(
-				glm::vec2({ mouseWorldX, mouseWorldY }),
-				triangle
-			)) {
-				// invoke object hover enter event
-				if (pObjects[o]->getId() != hoveringObjId) {
-					pObjects[o]->on_hover_enter();
+				for (int j = 0; j < 3; j++) {
+					auto vertex_normal = glm::normalize(vertices[indices[i + j]].pos);
+					float flat_t = -1 / vertex_normal.z;
+					triangle[j] = glm::vec2({ vertex_normal.x * flat_t, vertex_normal.y * flat_t });
 				}
 
-				new_hovering_obj_id = pObjects[o]->getId();
-				break;
+				// Cursor is hovering obj
+				if (pointInsideTriangle(
+					glm::vec2({ mouseWorldX, mouseWorldY }),
+					triangle
+				)) {
+					// invoke object hover enter event
+					if (pObjects[o]->getId() != hoveringObjId) {
+						pObjects[o]->hoveringStart();
+					}
+
+					new_hovering_obj_id = pObjects[o]->getId();
+					break;
+				}
 			}
 		}
+
+		
 	}
 
 	// invoke object hover leave event
 	if (hoveringObjId != new_hovering_obj_id && hoveringObjId >= 0) {
 		Object* obj = getObjectPointer(hoveringObjId);
-		if (obj != nullptr) obj->on_hover_leave();
+		if (obj != nullptr) obj->hoveringStop();
 	}
 
 	hoveringObjId = new_hovering_obj_id;
@@ -171,14 +176,14 @@ void Scene::mouseButtonCallback(int button, int action, int mods) {
 			
 		if (selectedObjId >= 0) {
 			Object* obj = getObjectPointer(selectedObjId);
-			if (obj != nullptr) obj->on_release();
+			if (obj != nullptr) obj->onRelease();
 		}
 
 		selectedObjId = hoveringObjId;
 
 		if (selectedObjId >= 0) {
 			Object* obj = getObjectPointer(selectedObjId);
-			if (obj != nullptr) obj->on_select();
+			if (obj != nullptr) obj->onSelect();
 		}
 	}
 

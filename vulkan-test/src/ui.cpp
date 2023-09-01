@@ -43,7 +43,7 @@ UI::UI(Scene* scene, GLFWwindow* window) {
     UI::window = window;
 }
 
-void UI::draw_ui(Viewport viewport) {
+void UI::draw_ui() {
     draw_menu_bar();
 
     // set fullscreen window
@@ -73,9 +73,9 @@ void UI::draw_ui(Viewport viewport) {
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
     // render viewport
-    pScene->getEnginePointer()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+    VkDescriptorSet viewportSet = pScene->getEnginePointer()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
 
-    ImGui::Image(viewport.descriptor_set, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
+    ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
     ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x - pos.x, io.MousePos.y - pos.y);
 
     ImGui::EndTable();
@@ -119,7 +119,7 @@ void UI::menu() {
             std::string name = "Plane " + std::to_string(plane_ptr->getId());
             if (ImGui::CollapsingHeader(name.c_str())) {
                 ImGui::SeparatorText("2D vertices");
-                auto plane_vertices = plane_ptr->get_vertices();
+                auto plane_vertices = plane_ptr->getVertices();
 
                 for (auto vertex : plane_vertices) {
                     auto vertex_normal = glm::normalize(vertex.pos);

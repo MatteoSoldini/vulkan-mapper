@@ -37,20 +37,21 @@ struct PipelineToLoad {
     std::string name;
     std::string vertex_shader_file;
     std::string fragment_shader_file;
+    VkPrimitiveTopology topology;
 };
 
 // runtime object
 struct Texture {
     VkImage image;
-    VkDeviceMemory image_memory;
-    VkImageView image_view;
-    VkDescriptorSet descriptor_set;
+    VkDeviceMemory imageMemory;
+    VkImageView imageView;
+    VkDescriptorSet descriptorSet;
 };
 
 // compile time object
 struct Pipeline {
     VkPipeline pipeline;
-    VkPipelineLayout pipeline_layout;
+    VkPipelineLayout pipelineLayout;
 };
 
 class Scene;
@@ -76,8 +77,9 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
     const std::vector<PipelineToLoad> pipelinesToLoad = {
-        PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv"},
-        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv"},
+        PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
+        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
+        PipelineToLoad{"line", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_LINE_LIST },
     };
 
     const std::vector<const char*> validationLayers = {
@@ -103,8 +105,6 @@ private:
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
-    //VkRenderPass renderPass;
-    //std::vector<VkFramebuffer> swapChainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
     VkBuffer vertexBuffer;
@@ -112,15 +112,15 @@ private:
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     VkDescriptorPool descriptorPool;
-    std::vector<VkDescriptorSet> uniform_buffer_sets;
+    std::vector<VkDescriptorSet> uniformBufferSets;
     VkSampler textureSampler;
 
-    // offscreen rendering
-    VkRenderPass offscreenRenderpass;
-    std::vector<Texture> offscreenTextures;
-    std::vector<VkFramebuffer> offscreenFramebuffers;
-    uint32_t offscreenViewportWidth = 0;
-    uint32_t offscreenViewportHeight = 0;
+    // viewport rendering
+    VkRenderPass viewportRenderpass;
+    std::vector<Texture> viewportTextures;
+    std::vector<VkFramebuffer> viewportFramebuffers;
+    uint32_t viewportWidth = 0;
+    uint32_t viewportHeight = 0;
 
     // textures
     std::map<std::string, Texture> textures;
@@ -209,11 +209,7 @@ private:
 
     void createImageViews();
 
-    void initOffscreenRender();
-
     VkShaderModule createShaderModule(const std::vector<char>& code);
-
-    void createOffscreenRenderPass();
 
     void createRenderPass();
 
@@ -230,8 +226,6 @@ private:
     void createSyncObjects();
 
     void recreateSwapChain();
-
-    void recreateOffscreenViewport(uint32_t width, uint32_t height);
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
@@ -269,14 +263,20 @@ private:
 
     void cleanup();
 
-    void initImGui();
 
+    // imgui
+    void initImGui();
+    void imGuiCleanup();
     void recordImGuiCommandBuffer(uint32_t imageIndex);
 
-    void imGuiCleanup();
+    // viewport
+    void initViewportRender();
+    void cleanupViewportRender();
+    void recreateViewportSurfaces(uint32_t width, uint32_t height);
+    void cleanupExcessSurfaces();
 
 public:
     void loadTexture(std::string imagePath);
 
-    void renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
+    VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
 };

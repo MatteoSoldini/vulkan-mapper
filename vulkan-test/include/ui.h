@@ -4,12 +4,6 @@
 
 class Scene;
 
-struct Viewport {
-	VkDescriptorSet descriptor_set;
-	float width;
-	float height;
-};
-
 class UI {
 private:
 	bool show_demo_window = false;
@@ -23,7 +17,7 @@ private:
 public:
 	UI(Scene* scene, GLFWwindow* window);
 
-	void draw_ui(Viewport viewport);
+	void draw_ui();
 
 	UI() = default;
 };

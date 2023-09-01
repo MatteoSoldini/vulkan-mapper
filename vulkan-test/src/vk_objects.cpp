@@ -14,7 +14,7 @@ Marker::Marker(Scene* scene_ptr, float pos_x, float pos_y, glm::vec3 color, uint
     Marker::scene_ptr = scene_ptr;
 }
 
-std::vector<Vertex> Marker::get_vertices() {
+std::vector<Vertex> Marker::getVertices() {
     glm::vec3 final_color = color;
     
     if (highlighted) {
@@ -31,23 +31,23 @@ std::vector<Vertex> Marker::get_vertices() {
     };
 }
 
-std::vector<uint16_t> Marker::get_indices() {
+std::vector<uint16_t> Marker::getIndices() {
     return {
         0, 1, 2, 2, 3, 0
     };
 }
 
-void Marker::on_hover_enter() {
+void Marker::hoveringStart() {
 }
 
-void Marker::on_hover_leave() {
+void Marker::hoveringStop() {
 }
 
-void Marker::on_select() {
+void Marker::onSelect() {
     highlighted = true;
 }
 
-void Marker::on_release() {
+void Marker::onRelease() {
     highlighted = false;
 }
 
@@ -88,23 +88,23 @@ Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos
     Plane::pScene = scene_ptr;
 }
 
-void Plane::on_remove() {
+void Plane::beforeRemove() {
     for (auto marker_id : markerIds) {
         pScene->removeObject(marker_id);
     }
 }
 
-std::vector<Vertex> Plane::get_vertices() {
+std::vector<Vertex> Plane::getVertices() {
     return vertices;
 }
 
-std::vector<uint16_t> Plane::get_indices() {
+std::vector<uint16_t> Plane::getIndices() {
     return {
         0, 1, 2, 2, 3, 0
     };
 }
 
-std::string Plane::get_pipeline_name() {
+std::string Plane::getPipelineName() {
     if (Plane::get_image_path() != "") {
         return "texture";
     }
@@ -116,13 +116,13 @@ void Plane::set_image_path(std::string image_path) {
     pScene->getEnginePointer()->loadTexture(image_path);
 }
 
-void Plane::on_hover_enter() {
+void Plane::hoveringStart() {
 }
 
-void Plane::on_hover_leave() {
+void Plane::hoveringStop() {
 }
 
-void Plane::on_select() {
+void Plane::onSelect() {
     for (auto& vertex : vertices) {
         vertex.color.r += .1f;
         vertex.color.g += .1f;
@@ -136,9 +136,11 @@ void Plane::on_select() {
         float flat_t = -1.0f / ray.z;
         markerIds.push_back(pScene->addObject(new Marker(pScene, ray.x * flat_t, ray.y * flat_t, { 1.0f, 1.0f,1.0f }, Plane::getId(), i)));
     }
+
+    pScene->addObject(new Line());
 }
 
-void Plane::on_release() {
+void Plane::onRelease() {
     for (auto& vertex : vertices) {
         vertex.color.r -= .1f;
         vertex.color.g -= .1f;
@@ -341,4 +343,15 @@ void Plane::moveVertex(unsigned int vertex_id) {
     for (int i = 0; i < vertices_count; i++) {
         vertices[i].pos = source[i] * H;
     }
+}
+
+std::vector<Vertex> Line::getVertices() {
+    return {
+        Vertex{{0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f} },
+        Vertex{{0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f} }
+    };
+}
+
+std::vector<uint16_t> Line::getIndices() {
+    return { 0, 1 };
 }
