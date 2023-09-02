@@ -328,7 +328,7 @@ int VulkanEngine::rateDeviceSuitability(VkPhysicalDevice device) {
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    if (!indices.isComplete() || !extensionsSupported || !deviceFeatures.geometryShader || !swapChainAdequate || !supportedFeatures.samplerAnisotropy)
+    if (!indices.isComplete() || !extensionsSupported || !deviceFeatures.geometryShader || !swapChainAdequate || !supportedFeatures.samplerAnisotropy || !supportedFeatures.wideLines)
         return 0;
 
     return score;
@@ -409,6 +409,7 @@ void VulkanEngine::createLogicalDevice() {
 
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.wideLines = VK_TRUE;
 
     // Creating logical device
     VkDeviceCreateInfo createInfo{};
@@ -636,7 +637,8 @@ void VulkanEngine::loadPipelines() {
         // a limited amount of the state can actually be changed without recreating the pipeline at draw time
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
+            VK_DYNAMIC_STATE_SCISSOR,
+            VK_DYNAMIC_STATE_LINE_WIDTH,
         };
 
         VkPipelineDynamicStateCreateInfo dynamicState{};
@@ -852,8 +854,8 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     renderPassInfo.renderPass = viewportRenderpass;
     renderPassInfo.framebuffer = viewportFramebuffers[currentFrame];
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent.width = viewportWidth;
-    renderPassInfo.renderArea.extent.height = viewportHeight;
+    renderPassInfo.renderArea.extent.width = viewportTextures[currentFrame].width;
+    renderPassInfo.renderArea.extent.height = viewportTextures[currentFrame].height;
 
     VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
     renderPassInfo.clearValueCount = 1;
@@ -864,8 +866,8 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(viewportWidth);
-    viewport.height = static_cast<float>(viewportHeight);
+    viewport.width = static_cast<float>(viewportTextures[currentFrame].width);
+    viewport.height = static_cast<float>(viewportTextures[currentFrame].height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
@@ -885,34 +887,39 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
     std::string last_pipeline_name = "";
 
     auto object_ids = pScene->getIds();
-    int index = 0;
+    uint32_t indexOffset = 0;
 
     for (auto object_id : object_ids) {
         auto object = pScene->getObjectPointer(object_id);
 
         // bind new pipeline if needed
-        std::string pipeline_name = object->getPipelineName();
-        if (pipeline_name != last_pipeline_name) {
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipeline);
+        std::string pipelineName = object->getPipelineName();
+        if (pipelineName != last_pipeline_name) {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipeline);
 
             // bind vertex and index buffer to new pipeline
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipelineLayout, 0, 1, &uniformBufferSets[currentFrame], 0, nullptr);
-            last_pipeline_name = pipeline_name;
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 0, 1, &uniformBufferSets[currentFrame], 0, nullptr);
+            last_pipeline_name = pipelineName;
         }
 
         // bind texture
-        if (pipeline_name == "texture") {
+        if (pipelineName == "texture") {
             auto plane = dynamic_cast<Plane*>(object);
             if (plane != nullptr) {
                 Texture texture = textures[plane->get_image_path()];
-                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipeline_name].pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
             }
+        }
+
+        if (pipelineName == "line") {
+            vkCmdSetLineWidth(commandBuffer, 4.0f);
         }
 
         // draw
         std::vector<uint16_t> object_indices = object->getIndices();
-        vkCmdDrawIndexed(commandBuffer, object_indices.size(), 1, object_indices.size() * index, 0, 0);
-        index++;
+        uint32_t indexCount = object_indices.size();
+        vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, 0, 0);
+        indexOffset += object_indices.size();
     }
 
     vkCmdEndRenderPass(commandBuffer);
@@ -972,74 +979,52 @@ void VulkanEngine::recreateSwapChain() {
     //ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, width, height, g_MinImageCount);
 }
 
-void VulkanEngine::recreateViewportSurfaces(uint32_t width, uint32_t height) {
-    viewportWidth = width;
-    viewportHeight = height;
+void VulkanEngine::recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex) {
+    // destroy outdated surface
+    vkDestroyFramebuffer(device, viewportFramebuffers[surfaceIndex], nullptr);
+    vkDestroyImageView(device, viewportTextures[surfaceIndex].imageView, nullptr);
+    vkDestroyImage(device, viewportTextures[surfaceIndex].image, nullptr);
+    vkFreeMemory(device, viewportTextures[surfaceIndex].imageMemory, nullptr);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        // create destination image
-        VkImage image;
-        VkDeviceMemory image_memory;
-        createImage(viewportWidth, viewportHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_memory);
+    // create destination image
+    VkImage image;
+    VkDeviceMemory imageMemory;
+    createImage(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
-        transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        // create image view
-        VkImageView image_view = createImageView(image, VK_FORMAT_R8G8B8A8_SRGB);
+    // create image view
+    VkImageView imageView = createImageView(image, VK_FORMAT_R8G8B8A8_SRGB);
 
-        // create framebuffer
-        VkImageView attachments[] = {
-            image_view
-        };
+    // create framebuffer
+    VkImageView attachments[] = {
+        imageView
+    };
 
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = viewportRenderpass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = viewportWidth;
-        framebufferInfo.height = viewportHeight;
-        framebufferInfo.layers = 1;
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = viewportRenderpass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = attachments;
+    framebufferInfo.width = width;
+    framebufferInfo.height = height;
+    framebufferInfo.layers = 1;
 
-        VkFramebuffer framebuffer;
-
-        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create framebuffer!");
-        }
-
-        viewportFramebuffers.insert(viewportFramebuffers.begin(), framebuffer);
-
-        Texture texture{};
-        texture.image = image;
-        texture.imageMemory = image_memory;
-        texture.imageView = image_view;
-        texture.descriptorSet = ImGui_ImplVulkan_AddTexture(textureSampler, image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        viewportTextures.insert(viewportTextures.begin(), texture);
-    }
-}
-
-void VulkanEngine::cleanupExcessSurfaces() {
-    // destroy outdated surfaces
-    
-    // clenup textures
-    int length = viewportTextures.size() - MAX_FRAMES_IN_FLIGHT;
-    for (int i = 0; i < length; i++) {
-        vkDestroyImage(device, viewportTextures[MAX_FRAMES_IN_FLIGHT + i].image, nullptr);
-        vkFreeMemory(device, viewportTextures[MAX_FRAMES_IN_FLIGHT + i].imageMemory, nullptr);
-        vkDestroyImageView(device, viewportTextures[MAX_FRAMES_IN_FLIGHT + i].imageView, nullptr);
+    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &viewportFramebuffers[surfaceIndex]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create framebuffer!");
     }
 
-    // clenup framebuffers
-    length = viewportFramebuffers.size() - MAX_FRAMES_IN_FLIGHT;
-    for (int i = 0; i < length; i++) {
-        vkDestroyFramebuffer(device, viewportFramebuffers[MAX_FRAMES_IN_FLIGHT+i], nullptr);
-    }
+    Texture texture{};
+    texture.image = image;
+    texture.imageMemory = imageMemory;
+    texture.imageView = imageView;
+    texture.descriptorSet = ImGui_ImplVulkan_AddTexture(textureSampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    texture.width = width;
+    texture.height = height;
 
-    viewportTextures.resize(MAX_FRAMES_IN_FLIGHT);
-    viewportFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    viewportTextures[surfaceIndex] = texture;
 
-    std::cout << "Removed " << length << " outdate viewport surfaces" << std::endl;
+    std::cout << "Viewport surface " << currentFrame << " recreated successfully" << std::endl;
 }
 
 void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
@@ -1469,7 +1454,11 @@ void VulkanEngine::initViewportRender() {
         throw std::runtime_error("failed to create render pass!");
     }
 
-    recreateViewportSurfaces(swapChainExtent.width, swapChainExtent.height);
+    viewportFramebuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    viewportTextures.resize(MAX_FRAMES_IN_FLIGHT);
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        recreateViewportSurface(swapChainExtent.width, swapChainExtent.height, i);
+    }
 }
 
 void VulkanEngine::cleanupViewportRender() {
@@ -1530,7 +1519,7 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
     ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     //ubo.proj = glm::ortho(-.5f* aspect, .5f* aspect, -.5f, .5f, -10.0f, 10.0f);
-    ubo.proj = glm::perspective(glm::radians(60.0f), viewportWidth / (float)viewportHeight, 0.0f, 10.0f);
+    ubo.proj = glm::perspective(glm::radians(60.0f), viewportTextures[currentFrame].width / (float)viewportTextures[currentFrame].height, 0.0f, 10.0f);
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -1967,8 +1956,6 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     if (vkEndCommandBuffer(imGuiCommandBuffers[currentFrame])) {
         throw std::runtime_error("Failed to end recording command buffer");
     }
-
-    if (viewportTextures.size() > MAX_FRAMES_IN_FLIGHT) cleanupExcessSurfaces();
 }
 
 void VulkanEngine::imGuiCleanup() {
@@ -2082,9 +2069,9 @@ VkDescriptorSet VulkanEngine::renderViewport(uint32_t viewportWidth, uint32_t vi
     glm::vec4 mouseRay = glm::normalize(cameraCoords * viewInv);
     pScene->mouseRayCallback(mouseRay);
     
-    // resize viewport
-    if (VulkanEngine::viewportWidth != viewportWidth || VulkanEngine::viewportHeight != viewportHeight) {
-        recreateViewportSurfaces(viewportWidth, viewportHeight);
+    // resize surfaces before rendering
+    if (viewportTextures[currentFrame].width != viewportWidth || viewportTextures[currentFrame].height != viewportHeight) {
+        recreateViewportSurface(viewportWidth, viewportHeight, currentFrame);
     }
     
     // update data

@@ -46,6 +46,8 @@ struct Texture {
     VkDeviceMemory imageMemory;
     VkImageView imageView;
     VkDescriptorSet descriptorSet;
+    uint32_t width;
+    uint32_t height;
 };
 
 // compile time object
@@ -79,7 +81,7 @@ private:
     const std::vector<PipelineToLoad> pipelinesToLoad = {
         PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
         PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
-        PipelineToLoad{"line", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_LINE_LIST },
+        PipelineToLoad{"line", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP },
     };
 
     const std::vector<const char*> validationLayers = {
@@ -119,8 +121,6 @@ private:
     VkRenderPass viewportRenderpass;
     std::vector<Texture> viewportTextures;
     std::vector<VkFramebuffer> viewportFramebuffers;
-    uint32_t viewportWidth = 0;
-    uint32_t viewportHeight = 0;
 
     // textures
     std::map<std::string, Texture> textures;
@@ -272,8 +272,7 @@ private:
     // viewport
     void initViewportRender();
     void cleanupViewportRender();
-    void recreateViewportSurfaces(uint32_t width, uint32_t height);
-    void cleanupExcessSurfaces();
+    void recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex);
 
 public:
     void loadTexture(std::string imagePath);

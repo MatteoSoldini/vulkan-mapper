@@ -42,6 +42,7 @@ private:
 	float pos_y = 0;
 	std::vector<Vertex> vertices;
 	std::vector<uint8_t> markerIds;
+	std::vector<uint8_t> lineIds;
 	float width;
 	float height;
 	std::string image_path = "";
@@ -106,8 +107,11 @@ public:
 
 class Line : public Object {
 private:
+	std::vector<Vertex> vertices;
 
 public:
+	Line(glm::vec2 firstPoint, glm::vec2 secondPoint);
+
 	// renderer
 	std::vector<Vertex> getVertices();
 	std::vector<uint16_t> getIndices();
@@ -121,6 +125,7 @@ public:
 	virtual void onSelect() { return; };
 	virtual void onRelease() { return; };
 	virtual void onMove(float deltaX, float deltaY) { return; };
+	void moveVertices(glm::vec2 firstPoint, glm::vec2 secondPoint);
 
 	// config
 	bool selectable() { return true; };

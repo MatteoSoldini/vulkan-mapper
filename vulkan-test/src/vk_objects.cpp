@@ -89,9 +89,7 @@ Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos
 }
 
 void Plane::beforeRemove() {
-    for (auto marker_id : markerIds) {
-        pScene->removeObject(marker_id);
-    }
+    onRelease();
 }
 
 std::vector<Vertex> Plane::getVertices() {
@@ -137,7 +135,15 @@ void Plane::onSelect() {
         markerIds.push_back(pScene->addObject(new Marker(pScene, ray.x * flat_t, ray.y * flat_t, { 1.0f, 1.0f,1.0f }, Plane::getId(), i)));
     }
 
-    pScene->addObject(new Line());
+    // add lines
+    for (int i = 0; i < 4; i++) {
+        glm::vec3 firstPointRay = glm::normalize(vertices[i].pos);
+        float firstPointT = -1.0f / firstPointRay.z;
+
+        glm::vec3 secondPointRay = glm::normalize(vertices[(i + 1) % 4].pos);
+        float secondPointT = -1.0f / secondPointRay.z;
+        lineIds.push_back(pScene->addObject(new Line({ firstPointRay.x * firstPointT , firstPointRay.y * firstPointT }, { secondPointRay.x * secondPointT , secondPointRay.y * secondPointT })));
+    }
 }
 
 void Plane::onRelease() {
@@ -152,6 +158,12 @@ void Plane::onRelease() {
         pScene->removeObject(marker_id);
     }
     markerIds.clear();
+
+    // remove lines
+    for (auto lineId : lineIds) {
+        pScene->removeObject(lineId);
+    }
+    lineIds.clear();
 }
 
 void Plane::onMove(float deltaX, float deltaY) {
@@ -343,15 +355,38 @@ void Plane::moveVertex(unsigned int vertex_id) {
     for (int i = 0; i < vertices_count; i++) {
         vertices[i].pos = source[i] * H;
     }
+
+    // move line
+    for (int i = 0; i < 4; i++) {
+        glm::vec3 firstPointRay = glm::normalize(vertices[i].pos);
+        float firstPointT = -1.0f / firstPointRay.z;
+
+        glm::vec3 secondPointRay = glm::normalize(vertices[(i + 1) % 4].pos);
+        float secondPointT = -1.0f / secondPointRay.z;
+
+        Line* pLine = dynamic_cast<Line*>(pScene->getObjectPointer(lineIds[i]));
+        pLine->moveVertices({ firstPointRay.x * firstPointT , firstPointRay.y * firstPointT }, { secondPointRay.x * secondPointT , secondPointRay.y * secondPointT });
+    }
+}
+
+Line::Line(glm::vec2 firstPoint, glm::vec2 secondPoint) {
+    vertices = {
+        Vertex{{ firstPoint.x, firstPoint.y, -1.0f }, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} },
+        Vertex{{ secondPoint.x, secondPoint.y, -1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} },
+    };
 }
 
 std::vector<Vertex> Line::getVertices() {
-    return {
-        Vertex{{0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f} },
-        Vertex{{0.5f, 0.5f, -1.0f}, {1.0f, 1.0f, 1.0f} }
-    };
+    return vertices;
 }
 
 std::vector<uint16_t> Line::getIndices() {
     return { 0, 1 };
+}
+
+void Line::moveVertices(glm::vec2 firstPoint, glm::vec2 secondPoint) {
+    vertices = {
+        Vertex{{ firstPoint.x, firstPoint.y, -1.0f }, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} },
+        Vertex{{ secondPoint.x, secondPoint.y, -1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} },
+    };
 }
