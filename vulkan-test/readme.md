@@ -1,10 +1,26 @@
 # to do
+- [ ] media manager
+	- plane-to-media binding
+		- multiple media could be used by multiple planes in multiple scenes
+	- [x] load files (images)
+	- [x] show files in list
+	- [ ] show image preview
+	- [x] with a plane selected, bind a image to the plane
+- [ ] fullscreen projection window
+
 
 # future
 - isolate imgui init function in its own class
 - video input implementation (ex. OBS can be used as a source)
 	- OBS can be used to implement scenes & sound
 - plane move could be more efficient, now is computing homography matrix on single marker move, when moving a plane all 4 markers gets moved one at a time
+- video playback
+- scenes
+- timelines
+- input area for each plane
+- viewport panning/zooming
+- draw screen area to viewport
+- draw markers as pixel size (relative to viewport size)
 
 # done
 - [x] draw imgui

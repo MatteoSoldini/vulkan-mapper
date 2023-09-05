@@ -103,15 +103,14 @@ std::vector<uint16_t> Plane::getIndices() {
 }
 
 std::string Plane::getPipelineName() {
-    if (Plane::get_image_path() != "") {
+    if (imageId != -1) {
         return "texture";
     }
     else return "color";
 }
 
-void Plane::set_image_path(std::string image_path) {
-    Plane::image_path = image_path;
-    pScene->getEnginePointer()->loadTexture(image_path);
+void Plane::setImageId(uint8_t id) {
+    Plane::imageId = id;
 }
 
 void Plane::hoveringStart() {

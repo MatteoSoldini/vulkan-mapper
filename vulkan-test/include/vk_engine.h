@@ -14,6 +14,7 @@
 #include <map>
 #include "scene.h"
 #include "ui.h"
+#include "media_manager.h"
 
 #include <imgui.h>
 
@@ -59,6 +60,8 @@ struct Pipeline {
 class Scene;
 
 class UI;
+
+class MediaManager;
 
 class VulkanEngine {
 public:
@@ -123,7 +126,7 @@ private:
     std::vector<VkFramebuffer> viewportFramebuffers;
 
     // textures
-    std::map<std::string, Texture> textures;
+    std::map<uint8_t, Texture> textures;
 
     // pipelines
     std::map<std::string, Pipeline> pipelines;
@@ -141,6 +144,9 @@ private:
 
     // scene
     Scene* pScene;
+
+    // media manager
+    MediaManager* pMediaManager;
 
     // imgui
     VkCommandPool imGuiCommandPool;
@@ -275,7 +281,7 @@ private:
     void recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex);
 
 public:
-    void loadTexture(std::string imagePath);
+    void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
 
     VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
 };

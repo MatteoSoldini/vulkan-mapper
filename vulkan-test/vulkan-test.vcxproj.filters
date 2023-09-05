@@ -69,6 +69,9 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c">
       <Filter>nfd</Filter>
     </ClCompile>
+    <ClCompile Include="src\media_manager.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\texture.frag" />
@@ -104,6 +107,9 @@
       <Filter>imgui</Filter>
     </ClInclude>
     <ClInclude Include="include\ui.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="include\media_manager.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>

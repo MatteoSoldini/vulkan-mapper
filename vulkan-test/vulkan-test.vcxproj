@@ -164,6 +164,7 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_win.cpp" />
+    <ClCompile Include="src\media_manager.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\clamp\clamp.cpp" />
@@ -182,6 +183,7 @@
     <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui.h" />
     <ClInclude Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_internal.h" />
     <ClInclude Include="include\clamp.h" />
+    <ClInclude Include="include\media_manager.h" />
     <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\ui.h" />
     <ClInclude Include="include\vk_engine.h" />

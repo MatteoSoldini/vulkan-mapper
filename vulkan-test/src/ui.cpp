@@ -5,7 +5,7 @@
 #include <string>
 #include <nfd.h>
 
-void UI::draw_menu_bar() {
+void UI::drawTopBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Exit")) {
@@ -17,7 +17,32 @@ void UI::draw_menu_bar() {
     }
 }
 
-std::string UI::open_file_dialog() {
+void UI::drawMediaManager() {
+    std::vector<MediaImage> medias = pMediaManager->getMedias();
+
+    for (auto media : medias) {
+        bool selected = false;
+        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
+            uint8_t selectedObjId = pScene->getSelectedObjectId();
+            if (selectedObjId != -1) {
+                Plane* pPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
+
+                if (pPlane != nullptr) {
+                    pPlane->setImageId(media.id);
+                }
+            }
+        }
+    }
+    
+    if (ImGui::Button("Add", ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
+        std::string image_path = openFileDialog();
+        if (!image_path.empty()) {
+            pMediaManager->loadImage(image_path);
+        }
+    }
+}
+
+std::string UI::openFileDialog() {
     nfdchar_t* outPath = NULL;
     nfdchar_t* filter_list = (nfdchar_t*)"png, jpg";
     nfdresult_t result = NFD_OpenDialog(filter_list, NULL, &outPath);
@@ -38,13 +63,14 @@ std::string UI::open_file_dialog() {
     return path;
 }
 
-UI::UI(Scene* scene, GLFWwindow* window) {
+UI::UI(Scene* scene, MediaManager* pMediaManager, GLFWwindow* window) {
     UI::pScene = scene;
     UI::window = window;
+    UI::pMediaManager = pMediaManager;
 }
 
-void UI::draw_ui() {
-    draw_menu_bar();
+void UI::drawUi() {
+    drawTopBar();
 
     // set fullscreen window
     static ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
@@ -54,15 +80,18 @@ void UI::draw_ui() {
 
     ImGui::Begin("App", nullptr, flags);
 
-    ImGui::BeginTable("table1", 2);
+    ImGui::BeginTable("table1", 3);
     // set first first column width
     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+
 
     ImGui::TableNextRow();
 
     // first column
     ImGui::TableSetColumnIndex(0);
-    UI::menu();
+    planesMenu();
 
     // second column
     ImGui::TableSetColumnIndex(1);
@@ -76,7 +105,10 @@ void UI::draw_ui() {
     VkDescriptorSet viewportSet = pScene->getEnginePointer()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
 
     ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-    ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+    
+    // third column - media manager
+    ImGui::TableSetColumnIndex(2);
+    drawMediaManager();
 
     ImGui::EndTable();
 
@@ -87,7 +119,7 @@ void UI::draw_ui() {
     }
 }
 
-void UI::menu() {
+void UI::planesMenu() {
     ImGui::BeginGroup();
 
     ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2)); // Leave room for 1 line below us
@@ -127,20 +159,21 @@ void UI::menu() {
 
                     ImGui::Text("x: %.3f \t y: %.3f", vertex_normal.x * flat_t, vertex_normal.y * flat_t);
                 }
-
+                /*
                 ImGui::SeparatorText("Image");
 
-                std::string button_label = plane_ptr->get_image_path();
+                std::string button_label = plane_ptr->getImageId();
                 if (button_label.size() == 0) {
                     button_label = "Load";
                 }
 
                 if (ImGui::Button(button_label.c_str())) {
-                    std::string image_path = open_file_dialog();
+                    std::string image_path = openFileDialog();
                     if (!image_path.empty()) {
-                        plane_ptr->set_image_path(image_path);
+                        plane_ptr->setImageId(image_path);
                     }
                 }
+                */
 
                 ImGui::SeparatorText("Functions");
                 if (ImGui::Button("Remove")) {
@@ -153,7 +186,7 @@ void UI::menu() {
         }
     }
 
-    if (ImGui::Button("Add")) {
+    if (ImGui::Button("Add", ImVec2{ ImGui::GetContentRegionAvail().x , 20 })) {
         // TO DO: open file dialog 
         pScene->addObject(new Plane(pScene, .3f, .3f, 0.0f, 0.0f));
     }

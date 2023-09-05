@@ -45,7 +45,7 @@ private:
 	std::vector<uint8_t> lineIds;
 	float width;
 	float height;
-	std::string image_path = "";
+	int imageId = -1;
 
 public:
 	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
@@ -58,11 +58,11 @@ public:
 	std::vector<uint16_t> getIndices();
 	std::string getPipelineName();
 
-	std::string get_image_path() {
-		return Plane::image_path;
+	uint8_t getImageId() {
+		return Plane::imageId;
 	}
 
-	void set_image_path(std::string image_path);
+	void setImageId(uint8_t id);
 
 	void hoveringStart();
 	void hoveringStop();

@@ -18,13 +18,13 @@
 #include "imgui_impl_glfw.h"
 #include <imgui_impl_vulkan.h>
 
-// texture
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include "../include/ui.h"
+#include "../include/media_manager.h"
+
 
 VulkanEngine::VulkanEngine() {
     VulkanEngine::pScene = new Scene(this);
+    VulkanEngine::pMediaManager = new MediaManager(this);
 }
 
 uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -188,7 +188,7 @@ void VulkanEngine::initWindow() {
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     // ui
-    pUi = new UI(pScene, window);
+    pUi = new UI(pScene, pMediaManager, window);
 }
 
 
@@ -906,7 +906,7 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
         if (pipelineName == "texture") {
             auto plane = dynamic_cast<Plane*>(object);
             if (plane != nullptr) {
-                Texture texture = textures[plane->get_image_path()];
+                Texture texture = textures[plane->getImageId()];
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
             }
         }
@@ -1917,7 +1917,7 @@ void VulkanEngine::recordImGuiCommandBuffer(uint32_t imageIndex) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    pUi->draw_ui();
+    pUi->drawUi();
 
     ImGui::Render();
 
@@ -1973,17 +1973,8 @@ void VulkanEngine::imGuiCleanup() {
     vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
 }
 
-void VulkanEngine::loadTexture(std::string image_path) {
-    // TO DO: check if image already loaded
-
-    // read pixel data
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load(image_path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-    if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-    }
+void VulkanEngine::loadTexture(uint8_t id, unsigned char* pixels, int width, int height) {
+    VkDeviceSize imageSize = width * height * 4;
 
     // transfer image
     VkBuffer stagingBuffer;
@@ -1995,15 +1986,13 @@ void VulkanEngine::loadTexture(std::string image_path) {
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingBufferMemory);
 
-    stbi_image_free(pixels);
-
     VkImage texture_image;
     VkDeviceMemory texture_image_memory;
 
-    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
+    createImage(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
 
     transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, texture_image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    copyBufferToImage(stagingBuffer, texture_image, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
     transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -2046,8 +2035,10 @@ void VulkanEngine::loadTexture(std::string image_path) {
     new_texture.imageMemory = texture_image_memory;
     new_texture.imageView = image_view;
     new_texture.descriptorSet = descriptor_set;
+    new_texture.width = width;
+    new_texture.height = height;
 
-    textures.emplace(image_path, new_texture);
+    textures.emplace(id, new_texture);
 }
 
 VkDescriptorSet VulkanEngine::renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY) {
