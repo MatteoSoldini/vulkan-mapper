@@ -164,6 +164,7 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_win.cpp" />
+    <ClCompile Include="src\vk_output.cpp" />
     <ClCompile Include="src\media_manager.cpp" />
     <ClCompile Include="src\ui.cpp" />
     <ClCompile Include="main.cpp" />
@@ -172,6 +173,7 @@
     <ClCompile Include="src\vk_engine.cpp" />
     <ClCompile Include="src\read_file\read_file.cpp" />
     <ClCompile Include="src\vk_objects.cpp" />
+    <ClCompile Include="src\vk_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\color.frag" />
@@ -188,8 +190,10 @@
     <ClInclude Include="include\ui.h" />
     <ClInclude Include="include\vk_engine.h" />
     <ClInclude Include="include\vk_objects.h" />
+    <ClInclude Include="include\vk_output.h" />
     <ClInclude Include="include\vk_types.h" />
     <ClInclude Include="include\read_file.h" />
+    <ClInclude Include="include\vk_utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

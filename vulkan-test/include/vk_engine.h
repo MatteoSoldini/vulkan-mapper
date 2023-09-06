@@ -15,6 +15,8 @@
 #include "scene.h"
 #include "ui.h"
 #include "media_manager.h"
+#include "vk_output.h"
+#include "vk_utils.h"
 
 #include <imgui.h>
 
@@ -26,12 +28,6 @@ struct QueueFamilyIndices {
     bool isComplete() {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
-};
-
-struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
 };
 
 struct PipelineToLoad {
@@ -148,6 +144,8 @@ private:
     // media manager
     MediaManager* pMediaManager;
 
+    VulkanOutput* pOutput;
+
     // imgui
     VkCommandPool imGuiCommandPool;
     std::vector<VkCommandBuffer> imGuiCommandBuffers;
@@ -193,8 +191,6 @@ private:
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
     
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-
     int rateDeviceSuitability(VkPhysicalDevice device);
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
@@ -204,12 +200,6 @@ private:
     void pickPhysicalDevice();
 
     void createLogicalDevice();
-
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
     void createSwapChain();
 
@@ -282,6 +272,8 @@ private:
 
 public:
     void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
+
+    void showOutput();
 
     VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
 };

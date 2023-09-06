@@ -72,6 +72,12 @@
     <ClCompile Include="src\media_manager.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
+    <ClCompile Include="src\vk_output.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_utils.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\texture.frag" />
@@ -110,6 +116,12 @@
       <Filter>File di intestazione</Filter>
     </ClInclude>
     <ClInclude Include="include\media_manager.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vk_output.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vk_utils.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>

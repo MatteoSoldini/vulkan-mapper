@@ -13,6 +13,12 @@ void UI::drawTopBar() {
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Output")) {
+            if (ImGui::MenuItem("Show output window")) {
+                pScene->getEnginePointer()->showOutput();
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
 }
@@ -20,16 +26,24 @@ void UI::drawTopBar() {
 void UI::drawMediaManager() {
     std::vector<MediaImage> medias = pMediaManager->getMedias();
 
+    int selectedObjId = pScene->getSelectedObjectId();
+    Plane* pSelectedPlane = nullptr;
+    if (selectedObjId != -1) {
+        pSelectedPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
+    }
+
     for (auto media : medias) {
         bool selected = false;
-        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
-            uint8_t selectedObjId = pScene->getSelectedObjectId();
-            if (selectedObjId != -1) {
-                Plane* pPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
 
-                if (pPlane != nullptr) {
-                    pPlane->setImageId(media.id);
-                }
+        if (pSelectedPlane != nullptr) {
+            if (pSelectedPlane->getImageId() == media.id) {
+                selected = true;
+            }
+        }
+
+        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
+            if (pSelectedPlane != nullptr) {
+                pSelectedPlane->setImageId(media.id);
             }
         }
     }

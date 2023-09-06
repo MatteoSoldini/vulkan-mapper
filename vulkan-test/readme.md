@@ -1,11 +1,5 @@
 # to do
-- [ ] media manager
-	- plane-to-media binding
-		- multiple media could be used by multiple planes in multiple scenes
-	- [x] load files (images)
-	- [x] show files in list
-	- [ ] show image preview
-	- [x] with a plane selected, bind a image to the plane
+
 - [ ] fullscreen projection window
 
 
@@ -40,3 +34,10 @@
 	- [x] cleanup
 - [x] draw line around planes
 	- [x] CHECKME: vertex/index buffer passed to pipeline
+- [x] media manager
+	- plane-to-media binding
+		- multiple media could be used by multiple planes in multiple scenes
+	- [x] load files (images)
+	- [x] show files in list
+	- [x] with a plane selected, bind a image to the plane
+		- [x] highlight binded image
