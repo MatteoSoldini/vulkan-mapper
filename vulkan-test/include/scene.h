@@ -40,7 +40,4 @@ public:
 	bool pointInsideTriangle(glm::vec2 point, std::vector<glm::vec2> triangle);
 	void mouseRayCallback(glm::vec4 mouseRay);
 	void mouseButtonCallback(int button, int action, int mods);
-	VulkanEngine* getEnginePointer() {
-		return pEngine;
-	};
 };

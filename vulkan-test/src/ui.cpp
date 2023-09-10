@@ -9,13 +9,14 @@ void UI::drawTopBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Exit")) {
-                glfwSetWindowShouldClose(window, GL_TRUE);
+                //glfwSetWindowShouldClose(window, GL_TRUE);
             }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Output")) {
-            if (ImGui::MenuItem("Show output window")) {
-                pScene->getEnginePointer()->showOutput();
+            bool showOutput = pEngine->getShowOutput();
+            if (ImGui::MenuItem("Show output window", nullptr, showOutput)) {
+                pEngine->setShowOutput(!showOutput);
             }
             ImGui::EndMenu();
         }
@@ -24,7 +25,10 @@ void UI::drawTopBar() {
 }
 
 void UI::drawMediaManager() {
+    MediaManager* pMediaManager = pEngine->getMediaManager();
     std::vector<MediaImage> medias = pMediaManager->getMedias();
+
+    Scene* pScene = pEngine->getScene();
 
     int selectedObjId = pScene->getSelectedObjectId();
     Plane* pSelectedPlane = nullptr;
@@ -77,10 +81,8 @@ std::string UI::openFileDialog() {
     return path;
 }
 
-UI::UI(Scene* scene, MediaManager* pMediaManager, GLFWwindow* window) {
-    UI::pScene = scene;
-    UI::window = window;
-    UI::pMediaManager = pMediaManager;
+UI::UI(VulkanEngine* pEngine) {
+    UI::pEngine = pEngine;
 }
 
 void UI::drawUi() {
@@ -116,7 +118,7 @@ void UI::drawUi() {
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
     // render viewport
-    VkDescriptorSet viewportSet = pScene->getEnginePointer()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+    VkDescriptorSet viewportSet = pEngine->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
 
     ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
     
@@ -134,6 +136,8 @@ void UI::drawUi() {
 }
 
 void UI::planesMenu() {
+    Scene* pScene = pEngine->getScene();
+
     ImGui::BeginGroup();
 
     ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2)); // Leave room for 1 line below us

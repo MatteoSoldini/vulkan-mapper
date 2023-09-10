@@ -20,16 +20,6 @@
 
 #include <imgui.h>
 
-
-struct QueueFamilyIndices {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-
-    bool isComplete() {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
-};
-
 struct PipelineToLoad {
     std::string name;
     std::string vertex_shader_file;
@@ -58,6 +48,8 @@ class Scene;
 class UI;
 
 class MediaManager;
+
+class VulkanOutput;
 
 class VulkanEngine {
 public:
@@ -144,7 +136,9 @@ private:
     // media manager
     MediaManager* pMediaManager;
 
+    // output
     VulkanOutput* pOutput;
+    bool showOutput = false;
 
     // imgui
     VkCommandPool imGuiCommandPool;
@@ -166,18 +160,11 @@ private:
     #else
         const bool enableValidationLayers = true;
     #endif
-
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
     VkCommandBuffer beginSingleTimeCommands();
 
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-    VkImageView createImageView(VkImage image, VkFormat format);
 
     bool checkValidationLayerSupport();
 
@@ -188,8 +175,6 @@ private:
     void initWindow();
 
     void createInstance();
-
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
     
     int rateDeviceSuitability(VkPhysicalDevice device);
 
@@ -204,8 +189,6 @@ private:
     void createSwapChain();
 
     void createImageViews();
-
-    VkShaderModule createShaderModule(const std::vector<char>& code);
 
     void createRenderPass();
 
@@ -273,7 +256,16 @@ private:
 public:
     void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
 
-    void showOutput();
+    bool getShowOutput();
+    void setShowOutput(bool showOutput);
 
     VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
+    
+    Scene* getScene() {
+        return pScene;
+    }
+
+    MediaManager* getMediaManager() {
+        return pMediaManager;
+    }
 };

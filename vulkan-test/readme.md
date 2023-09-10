@@ -1,9 +1,12 @@
-# to do
-
+# doing
 - [ ] fullscreen projection window
+	- [x] implementation
+	- [ ] test on second monitor
+- [ ] Video
+	- Link utili:
+		1. [Vulkan Video](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
 
-
-# future
+# to do
 - isolate imgui init function in its own class
 - video input implementation (ex. OBS can be used as a source)
 	- OBS can be used to implement scenes & sound
@@ -15,6 +18,7 @@
 - viewport panning/zooming
 - draw screen area to viewport
 - draw markers as pixel size (relative to viewport size)
+
 
 # done
 - [x] draw imgui

@@ -10,9 +10,7 @@ class MediaManager;
 class UI {
 private:
 	bool show_demo_window = false;
-	Scene* pScene;
-	MediaManager* pMediaManager;
-	GLFWwindow* window;
+	VulkanEngine* pEngine;
 
 	void planesMenu();
 	void drawTopBar();
@@ -20,7 +18,7 @@ private:
 	std::string openFileDialog();
 
 public:
-	UI(Scene* scene, MediaManager* pMediaManager, GLFWwindow* window);
+	UI(VulkanEngine* pEngine);
 
 	void drawUi();
 
