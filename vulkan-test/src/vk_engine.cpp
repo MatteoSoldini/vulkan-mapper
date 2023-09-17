@@ -20,12 +20,15 @@
 
 #include "../include/ui.h"
 #include "../include/media_manager.h"
+#include "../include/vk_video.h"
 
 
 VulkanEngine::VulkanEngine() {
     pScene = new Scene(this);
     pUi = new UI(this);
     pMediaManager = new MediaManager(this);
+    //auto v = VulkanVideo();
+    //v.loadVideo("video_test.mp4");
 }
 
 VkCommandBuffer VulkanEngine::beginSingleTimeCommands() {
@@ -138,7 +141,7 @@ void VulkanEngine::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -189,8 +192,12 @@ int VulkanEngine::rateDeviceSuitability(VkPhysicalDevice device) {
     // Minimum requirements
 
     // Check device supported queues
-
-    QueueFamilyIndices indices = findQueueFamilies(device, surface);
+    auto graphicsFamily = queryGraphicsQueueFamily(device);
+    auto presentFamily = queryPresentQueueFamily(device, surface);
+    auto videoFamily = queryGraphicsQueueFamily(device);
+    bool completeIndicies = graphicsFamily.has_value() && presentFamily.has_value() && videoFamily.has_value();
+    
+    // check extension
     bool extensionsSupported = checkDeviceExtensionSupport(device);
 
     // Swap chain support
@@ -205,7 +212,7 @@ int VulkanEngine::rateDeviceSuitability(VkPhysicalDevice device) {
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    if (!indices.isComplete() || !extensionsSupported || !deviceFeatures.geometryShader || !swapChainAdequate || !supportedFeatures.samplerAnisotropy || !supportedFeatures.wideLines)
+    if (!completeIndicies || !extensionsSupported || !deviceFeatures.geometryShader || !swapChainAdequate || !supportedFeatures.samplerAnisotropy || !supportedFeatures.wideLines)
         return 0;
 
     return score;
@@ -222,6 +229,11 @@ bool VulkanEngine::checkDeviceExtensionSupport(VkPhysicalDevice device) {
 
     for (const auto& extension : availableExtensions) {
         requiredExtensions.erase(extension.extensionName);
+    }
+
+    // print missing required extensions
+    for (auto requiredExtension : requiredExtensions) {
+        std::cout << "missing required extension: " << requiredExtension << std::endl;
     }
 
     return requiredExtensions.empty();
@@ -269,10 +281,8 @@ void VulkanEngine::pickPhysicalDevice() {
 }
 
 void VulkanEngine::createLogicalDevice() {
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
-
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    std::set<uint32_t> uniqueQueueFamilies = { graphicsFamily.value(), presentFamily.value() };
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -311,8 +321,8 @@ void VulkanEngine::createLogicalDevice() {
         std::cout << "Vulkan logical device created successfully" << std::endl;
     }
 
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, presentFamily.value(), 0, &presentQueue);
 }
 
 void VulkanEngine::createSwapChain() {
@@ -340,10 +350,9 @@ void VulkanEngine::createSwapChain() {
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Specify how to handle swap chain images that will be used across multiple queue families
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
-    uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    uint32_t queueFamilyIndices[] = { graphicsFamily.value(), presentFamily.value() };
 
-    if (indices.graphicsFamily != indices.presentFamily) {
+    if (graphicsFamily != presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;   // Images can be used across multiple queue families without explicit ownership transfers.
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -373,6 +382,12 @@ void VulkanEngine::createSwapChain() {
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
+}
+
+void VulkanEngine::queryQueueFamilies() {
+    graphicsFamily = queryGraphicsQueueFamily(physicalDevice);
+    presentFamily = queryPresentQueueFamily(physicalDevice, surface);
+    videoFamily = queryVideoQueueFamily(physicalDevice);
 }
 
 void VulkanEngine::createImageViews() {
@@ -627,12 +642,10 @@ void VulkanEngine::createFramebuffers(std::vector<VkFramebuffer>& frameBuffers, 
 }
 
 void VulkanEngine::createCommandPool(VkCommandPool* commandPool, VkCommandPoolCreateFlags flags) {
-    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
-
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = flags;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    poolInfo.queueFamilyIndex = graphicsFamily.value();
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr, commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");
@@ -1302,6 +1315,7 @@ void VulkanEngine::initVulkan() {
     
     // device
     pickPhysicalDevice();
+    queryQueueFamilies();
     createLogicalDevice();
     
     // presentation
@@ -1333,6 +1347,8 @@ void VulkanEngine::initVulkan() {
     VulkanEngine::pOutput = new VulkanOutput({
         instance,
         device,
+        graphicsFamily.value(),
+        presentFamily.value(),
         graphicsQueue,
         presentQueue,
         physicalDevice,
@@ -1344,6 +1360,13 @@ void VulkanEngine::initVulkan() {
         pScene,
     });
 
+    // TEST
+    VulkanVideo* p = new VulkanVideo({
+        instance,
+        physicalDevice,
+        device,
+        videoFamily.value()
+    }, "video_test.mp4");
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {

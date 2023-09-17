@@ -8,7 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-VulkanOutput::VulkanOutput(SharedEngineState sharedEngineState) {
+VulkanOutput::VulkanOutput(OutputSharedEngineState sharedEngineState) {
     VulkanOutput::sharedEngineState = sharedEngineState;
 }
 
@@ -52,10 +52,9 @@ void VulkanOutput::initSurface() {
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Specify how to handle swap chain images that will be used across multiple queue families
-    QueueFamilyIndices indices = findQueueFamilies(sharedEngineState.physicalDevice, surface);
-    uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    uint32_t queueFamilyIndices[] = { sharedEngineState.graphicsFamily, sharedEngineState.presentFamily };
 
-    if (indices.graphicsFamily != indices.presentFamily) {
+    if (sharedEngineState.graphicsFamily != sharedEngineState.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;   // Images can be used across multiple queue families without explicit ownership transfers.
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -115,12 +114,10 @@ void VulkanOutput::initSyncObjects() {
 }
 
 void VulkanOutput::initCommandPool() {
-    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(sharedEngineState.physicalDevice, surface);
-
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    poolInfo.queueFamilyIndex = sharedEngineState.graphicsFamily;
 
     if (vkCreateCommandPool(sharedEngineState.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");

@@ -16,9 +16,11 @@ struct Pipeline;
 
 struct Texture;
 
-struct SharedEngineState {
+struct OutputSharedEngineState {
 	VkInstance instance;
 	VkDevice device;
+	uint32_t graphicsFamily;
+	uint32_t presentFamily;
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
 	VkPhysicalDevice physicalDevice;
@@ -32,7 +34,7 @@ struct SharedEngineState {
 
 class VulkanOutput {
 public:
-	VulkanOutput(SharedEngineState sharedEngineState);
+	VulkanOutput(OutputSharedEngineState sharedEngineState);
 
 	void init() {
 		initWindow();
@@ -56,7 +58,7 @@ private:
 
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
-	SharedEngineState sharedEngineState;
+	OutputSharedEngineState sharedEngineState;
 
 	// surface
 	GLFWwindow* window;

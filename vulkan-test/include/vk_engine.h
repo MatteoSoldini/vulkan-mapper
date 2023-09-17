@@ -80,7 +80,12 @@ private:
     };
 
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        // presentation
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        // video decode
+        VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
+        VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
+        VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME
     };
     
     const uint32_t VERTICES_COUNT = 128;
@@ -107,6 +112,11 @@ private:
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> uniformBufferSets;
     VkSampler textureSampler;
+
+    // queue families
+    std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
+    std::optional<uint32_t> videoFamily;
 
     // viewport rendering
     VkRenderPass viewportRenderpass;
@@ -149,7 +159,7 @@ private:
 
     UI* pUi;
 
-    // Syncronization
+    // syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -185,6 +195,8 @@ private:
     void pickPhysicalDevice();
 
     void createLogicalDevice();
+
+    void queryQueueFamilies();
 
     void createSwapChain();
 

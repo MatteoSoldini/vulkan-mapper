@@ -70,36 +70,75 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwi
     return actualExtent;
 }
 
-QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
-    QueueFamilyIndices indices;
-    // Assign index to queue families that could be found
+std::optional<uint32_t> queryGraphicsQueueFamily(VkPhysicalDevice physicalDevice) {
+    std::optional<uint32_t> index;
 
+    // Assign index to queue families that could be found
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
-        }
-
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-        if (presentSupport) {
-            indices.presentFamily = i;
-        }
-
-        if (indices.isComplete()) {
+            index = i;
             break;
         }
 
         i++;
     }
 
-    return indices;
+    return index;
+}
+
+std::optional<uint32_t> queryPresentQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
+    std::optional<uint32_t> index;
+
+    // Assign index to queue families that could be found
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies) {
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+        if (presentSupport) {
+            index = i;
+            break;
+        }
+
+        i++;
+    }
+
+    return index;
+}
+
+std::optional<uint32_t> queryVideoQueueFamily(VkPhysicalDevice physicalDevice) {
+    std::optional<uint32_t> index;
+
+    // Assign index to queue families that could be found
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies) {
+        if (queueFamily.queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR) {
+            index = i;
+            break;
+        }
+
+        i++;
+    }
+
+    return index;
 }
 
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format) {

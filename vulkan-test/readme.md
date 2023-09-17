@@ -3,8 +3,12 @@
 	- [x] implementation
 	- [ ] test on second monitor
 - [ ] Video
-	- Link utili:
-		1. [Vulkan Video](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
+	- Useful links:
+		1. [Wicked Engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
+		2. [Wicked Engine github]()
+	- Dynamic load extension functions
+		- [Reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
+		- (alternative) [volk](https://github.com/zeux/volk)
 
 # to do
 - isolate imgui init function in its own class
