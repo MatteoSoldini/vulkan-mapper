@@ -24,6 +24,11 @@
 
 
 VulkanEngine::VulkanEngine() {
+    // init volk
+    if (volkInitialize() != VK_SUCCESS) {
+        throw std::runtime_error("vulkan loader isn't installed on your system");
+    }
+
     pScene = new Scene(this);
     pUi = new UI(this);
     pMediaManager = new MediaManager(this);
@@ -171,6 +176,9 @@ void VulkanEngine::createInstance() {
     else {
         std::cout << "Vulkan instance created successfully" << std::endl;
     }
+
+    volkLoadInstance(instance);
+
 }
 
 int VulkanEngine::rateDeviceSuitability(VkPhysicalDevice device) {
@@ -1725,6 +1733,10 @@ void VulkanEngine::initImGui() {
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
+
+    ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void* vulkan_instance) {
+        return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(vulkan_instance)), function_name);
+    }, & instance);
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForVulkan(window, true);

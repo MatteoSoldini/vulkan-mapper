@@ -2,6 +2,7 @@
 - [ ] fullscreen projection window
 	- [x] implementation
 	- [ ] test on second monitor
+	- [ ] FIXME: closing app with projection window open causes validation error
 - [ ] Video
 	- Useful links:
 		1. [Wicked Engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
@@ -9,6 +10,10 @@
 	- Dynamic load extension functions
 		- [Reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
 		- (alternative) [volk](https://github.com/zeux/volk)
+	- [ ] load video
+		- missing transfer to memory
+	- [ ] init decode
+		- missing pStdPPSs and pStdSPSs
 
 # to do
 - isolate imgui init function in its own class

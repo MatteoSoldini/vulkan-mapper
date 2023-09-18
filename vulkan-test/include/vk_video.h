@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 // implementation stolen from: https://wickedengine.net/2023/05/07/vulkan-video-decoding/
 
@@ -57,12 +57,11 @@ private:
 	uint32_t numDpbSlots = 0;
 
 	int currentFrame = 0;
-	
+
 	// vulkan
 	VideoSharedEngineState sharedEngineState;
 	VkVideoSessionKHR videoSession;
 
-	void initDecoder();
 	void createVideoSession();
 	void loadVideo(std::string filePath);
 

@@ -2,8 +2,8 @@
 
 #define NOMINMAX    // To solve the problem caused by the <Windows.h> header file that includes macro definitions named max and min
 
-#define VK_USE_PLATFORM_WIN32_KHR // Windows specific window system details
-#define GLFW_INCLUDE_VULKAN
+#include <volk.h>
+//#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>

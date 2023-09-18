@@ -19,6 +19,9 @@
     <Filter Include="nfd">
       <UniqueIdentifier>{101cf894-6bec-4dd5-b289-53341a20c164}</UniqueIdentifier>
     </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{3f7b0cb7-98e6-4d76-b896-9b3eb5c0a77a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -72,13 +75,13 @@
     <ClCompile Include="src\media_manager.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
-    <ClCompile Include="src\vk_output.cpp">
-      <Filter>File di origine</Filter>
-    </ClCompile>
     <ClCompile Include="src\vk_utils.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
     <ClCompile Include="src\vk_video.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vk_output.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
   </ItemGroup>
@@ -121,9 +124,6 @@
     <ClInclude Include="include\media_manager.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
-    <ClInclude Include="include\vk_output.h">
-      <Filter>File di intestazione</Filter>
-    </ClInclude>
     <ClInclude Include="include\vk_utils.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
@@ -131,6 +131,9 @@
       <Filter>File di intestazione</Filter>
     </ClInclude>
     <ClInclude Include="include\h264.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vk_output.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>

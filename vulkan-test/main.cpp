@@ -1,6 +1,9 @@
 #include "include/vk_engine.h"
 #include <iostream>
 
+#define VOLK_IMPLEMENTATION
+#include <volk.h> 
+
 int main() {
     VulkanEngine engine;
 

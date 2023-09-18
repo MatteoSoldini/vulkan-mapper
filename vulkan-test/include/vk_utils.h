@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h> 
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <optional>
@@ -25,4 +25,6 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format);
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+uint32_t findGenericMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter);
+
 void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);

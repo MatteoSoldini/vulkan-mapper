@@ -14,6 +14,7 @@ typedef size_t ssize_t;
 #define H264_IMPLEMENTATION
 #include "../include/h264.h"
 #include <algorithm>
+#include "../include/vk_utils.h"
 
 static int read_callback(int64_t offset, void* buffer, size_t size, void* token) {
     INPUT_BUFFER* buf = (INPUT_BUFFER*)token;
@@ -22,7 +23,8 @@ static int read_callback(int64_t offset, void* buffer, size_t size, void* token)
     return to_copy != size;
 }
 
-void VulkanVideo::initDecoder() {
+void VulkanVideo::createVideoSession() {
+    // query decode capabilities
     VkVideoDecodeH264ProfileInfoKHR decodeProfile = {};
     decodeProfile.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR;
     decodeProfile.stdProfileIdc = STD_VIDEO_H264_PROFILE_IDC_HIGH;
@@ -47,50 +49,106 @@ void VulkanVideo::initDecoder() {
     videoCapabilities.sType = VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR;
     videoCapabilities.pNext = &decodeCapabilities;
 
-    auto fn = vkGetInstanceProcAddr(sharedEngineState.instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR");
-
-    //fn();
-
-    /*if (fn(sharedEngineState.physicalDevice, &videoProfile, &videoCapabilities) == VK_FALSE) {
+    if (vkGetPhysicalDeviceVideoCapabilitiesKHR(sharedEngineState.physicalDevice, &videoProfile, &videoCapabilities) != VK_SUCCESS) {
         throw std::runtime_error("failed to get device video capabilities");
-    }*/
-}
+    }
 
-void VulkanVideo::createVideoSession() {
-    /*
-    uint32_t numReferenceFrames = 0;    //TODO
+    // create video session
+    uint32_t numReferenceFrames = videoCapabilities.maxActiveReferencePictures;    //TODO: should check actual max reference frame used by video
 
     VkVideoSessionCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
     info.queueFamilyIndex = sharedEngineState.videoFamily;
-    info.maxActiveReferencePictures = numReferenceFrames * 2; // *2: top and bottom field counts as two I think: https://vulkan.lunarg.com/doc/view/1.3.239.0/windows/1.3-extensions/vkspec.html#_video_decode_commands
-    info.maxDpbSlots = std::min(numDpbSlots, video_capability_h264.video_capabilities.maxDpbSlots);
-    info.maxCodedExtent.width = std::min(desc->width, video_capability_h264.video_capabilities.maxCodedExtent.width);
-    info.maxCodedExtent.height = std::min(desc->height, video_capability_h264.video_capabilities.maxCodedExtent.height);
-    info.pictureFormat = _ConvertFormat(desc->format);
+    info.maxActiveReferencePictures = numReferenceFrames; //*2: top and bottom field counts as two I think: https://vulkan.lunarg.com/doc/view/1.3.239.0/windows/1.3-extensions/vkspec.html#_video_decode_commands
+    info.maxDpbSlots = std::min(numDpbSlots, videoCapabilities.maxDpbSlots);
+    info.maxCodedExtent.width = std::min(width, videoCapabilities.maxCodedExtent.width);
+    info.maxCodedExtent.height = std::min(height, videoCapabilities.maxCodedExtent.height);
+    info.pictureFormat = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;    //YUV420
     info.referencePictureFormat = info.pictureFormat;
-    info.pVideoProfile = &video_capability_h264.profile;
-    info.pStdHeaderVersion = &video_capability_h264.video_capabilities.stdHeaderVersion;
+    info.pVideoProfile = &videoProfile;
+    info.pStdHeaderVersion = &videoCapabilities.stdHeaderVersion;
 
-
-    if (vkCreateVideoSessionKHR(sharedEngineState.device, &info, nullptr, &videoSession) == VK_FALSE) {
+    if (vkCreateVideoSessionKHR(sharedEngineState.device, &info, nullptr, &videoSession) != VK_SUCCESS) {
         throw std::runtime_error("failed to create video session");
     }
 
-    // query memory requirements with vkGetVideoSessionMemoryRequirementsKHR
+    // query memory requirements
+    uint32_t requirementsCount = 0;
+    vkGetVideoSessionMemoryRequirementsKHR(sharedEngineState.device, videoSession, &requirementsCount, nullptr);
+    std::vector<VkVideoSessionMemoryRequirementsKHR> videoSessionRequirements(requirementsCount);
 
-    // allocate and bind memory appropriately with vkBindVideoSessionMemoryKHR()
+    for (auto& videoSessionRequirement : videoSessionRequirements) {
+        videoSessionRequirement.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR;
+    }
+
+    if (vkGetVideoSessionMemoryRequirementsKHR(sharedEngineState.device, videoSession, &requirementsCount, videoSessionRequirements.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to get video session memory requirements");
+    }
+
+    // allocate and bind memory
+    //internal_state->allocations.resize(requirement_count);
+    for (uint32_t i = 0; i < requirementsCount; ++i) {
+        VkMemoryRequirements memoryRequirements = videoSessionRequirements[i].memoryRequirements;
+        
+        // allocate memory
+        VkDeviceMemory memory;
+        VkMemoryAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memoryRequirements.size;
+
+        allocInfo.memoryTypeIndex = findGenericMemoryType(
+            sharedEngineState.physicalDevice,
+            memoryRequirements.memoryTypeBits
+        );
+
+        if (vkAllocateMemory(sharedEngineState.device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate memory");
+        }
+
+        // bind memory
+        VkBindVideoSessionMemoryInfoKHR bindInfo = {};
+        bindInfo.sType = VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR;
+        bindInfo.memory = memory;
+        bindInfo.memoryBindIndex = videoSessionRequirements[i].memoryBindIndex;
+        bindInfo.memoryOffset = 0;
+        bindInfo.memorySize = allocInfo.allocationSize;
+
+        if (vkBindVideoSessionMemoryKHR(sharedEngineState.device, videoSession, 1, &bindInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to bind video session memory");
+        }
+    }
 
     // create session parameters
-    // VkVideoDecodeH264SessionParametersCreateInfoKHR and VkVideoSessionParametersCreateInfoKHR structures when calling vkCreateVideoSessionParametersKHR()
-    */
+    VkVideoDecodeH264SessionParametersAddInfoKHR sessionParametersAddInfoH264 = {};
+    sessionParametersAddInfoH264.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR;
+    sessionParametersAddInfoH264.stdPPSCount = ppsCount;
+    sessionParametersAddInfoH264.pStdPPSs = nullptr; //pps.data();
+    sessionParametersAddInfoH264.stdSPSCount = spsCount;
+    sessionParametersAddInfoH264.pStdSPSs = nullptr; //sps_array_h264.data();
+    
+    VkVideoDecodeH264SessionParametersCreateInfoKHR sessionParametersInfoH264 = {};
+    sessionParametersInfoH264.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR;
+    sessionParametersInfoH264.maxStdPPSCount = ppsCount;
+    sessionParametersInfoH264.maxStdSPSCount = spsCount;
+    sessionParametersInfoH264.pParametersAddInfo = &sessionParametersAddInfoH264;
+
+    VkVideoSessionParametersCreateInfoKHR sessionParametersInfo = {};
+    sessionParametersInfo.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_PARAMETERS_CREATE_INFO_KHR;
+    sessionParametersInfo.videoSession = videoSession;
+    sessionParametersInfo.videoSessionParametersTemplate = VK_NULL_HANDLE;
+    sessionParametersInfo.pNext = &sessionParametersInfoH264;
+
+    VkVideoSessionParametersKHR sessionParameters;
+    if (vkCreateVideoSessionParametersKHR(sharedEngineState.device, &sessionParametersInfo, nullptr, &sessionParameters) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create video session parameters");
+    }
 }
 
 VulkanVideo::VulkanVideo(VideoSharedEngineState sharedEngineState, std::string filePath) {
     VulkanVideo::sharedEngineState = sharedEngineState;
     
     loadVideo(filePath);
-    initDecoder();
+    createVideoSession();
     // video session
 }
 
