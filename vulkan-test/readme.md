@@ -5,15 +5,16 @@
 	- [ ] FIXME: closing app with projection window open causes validation error
 - [ ] Video
 	- Useful links:
-		1. [Wicked Engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
-		2. [Wicked Engine github]()
+		1. [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
+		2. [wicked engine github]()
 	- Dynamic load extension functions
-		- [Reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
+		- [reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
 		- (alternative) [volk](https://github.com/zeux/volk)
+		- using volk
 	- [ ] load video
-		- missing transfer to memory
-	- [ ] init decode
-		- missing pStdPPSs and pStdSPSs
+	- [x] init decode
+	- [x] create textures
+	- [ ] decode frame
 
 # to do
 - isolate imgui init function in its own class
@@ -38,10 +39,10 @@
 		- [x] To check: as many multiple frames in flight
 			- the command buffer follows the same principle (may not be correct for imageviews/framebuffers?)
 		- useful links:
-			- [Github repo](https://github.com/SaschaWillems/Vulkan/blob/master/examples/offscreen/offscreen.cpp)
+			- [github repo](https://github.com/SaschaWillems/Vulkan/blob/master/examples/offscreen/offscreen.cpp)
 	- [x] use the result in imgui as a texture
 		- Useful links:
-			- [Github issue](https://github.com/ocornut/imgui/issues/5110)
+			- [github issue](https://github.com/ocornut/imgui/issues/5110)
 	- [x] pass correct mouse position to scene
 		- rendering viewport during imgui rendering but before adding image
 	- [x] cleanup

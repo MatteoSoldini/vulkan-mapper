@@ -26,5 +26,3 @@ VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 uint32_t findGenericMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter);
-
-void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
