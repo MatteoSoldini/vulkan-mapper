@@ -40,7 +40,7 @@ struct OutputSharedEngineState {
 
 class VulkanOutput {
 public:
-	VulkanOutput(OutputSharedEngineState sharedEngineState);
+	VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanEngine* pDevice);
 
 	void init() {
 		initWindow();
@@ -65,6 +65,8 @@ private:
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
 	OutputSharedEngineState sharedEngineState;
+
+	VulkanEngine* pDevice;
 
 	// surface
 	GLFWwindow* window;

@@ -15,6 +15,7 @@ private:
 	void planesMenu();
 	void drawTopBar();
 	void drawMediaManager();
+	void viewport();
 	std::string openFileDialog();
 
 public:

@@ -5,22 +5,27 @@
 
 class VulkanEngine;
 
-struct MediaImage {
+enum MediaType {
+	Image,
+	Video,
+};
+
+struct Media {
 	uint8_t id;
+	MediaType type;
 	std::string filePath;
 };
 
 class MediaManager {
 private:
 	VulkanEngine* pEngine;
-	std::vector<MediaImage> images;
+	std::vector<Media> medias;
 
 public:
-	MediaManager(VulkanEngine* pEngine) {
-		MediaManager::pEngine = pEngine;
-	}
+	MediaManager(VulkanEngine* pEngine);
 
 	void loadImage(std::string filePath);
+	void loadVideo(std::string filePath);
 
-	std::vector<MediaImage> getMedias();
+	std::vector<Media> getMedias();
 };

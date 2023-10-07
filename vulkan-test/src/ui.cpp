@@ -26,7 +26,7 @@ void UI::drawTopBar() {
 
 void UI::drawMediaManager() {
     MediaManager* pMediaManager = pEngine->getMediaManager();
-    std::vector<MediaImage> medias = pMediaManager->getMedias();
+    std::vector<Media> medias = pMediaManager->getMedias();
 
     Scene* pScene = pEngine->getScene();
 
@@ -58,6 +58,16 @@ void UI::drawMediaManager() {
             pMediaManager->loadImage(image_path);
         }
     }
+}
+
+void UI::viewport() {
+    ImGuiIO& io = ImGui::GetIO();
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+
+    // render viewport
+    VkDescriptorSet viewportSet = pEngine->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+    ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
 }
 
 std::string UI::openFileDialog() {
@@ -102,26 +112,16 @@ void UI::drawUi() {
     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
 
-
     ImGui::TableNextRow();
 
-    // first column
+    // first column - planes menu
     ImGui::TableSetColumnIndex(0);
     planesMenu();
 
-    // second column
+    // second column - viewport
     ImGui::TableSetColumnIndex(1);
-    
-    // viewport
-    ImGuiIO& io = ImGui::GetIO();
-    ImVec2 pos = ImGui::GetCursorScreenPos();
-    ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+    viewport();
 
-    // render viewport
-    VkDescriptorSet viewportSet = pEngine->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
-
-    ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
-    
     // third column - media manager
     ImGui::TableSetColumnIndex(2);
     drawMediaManager();

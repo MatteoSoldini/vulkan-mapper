@@ -21,7 +21,6 @@ std::optional<uint32_t> queryGraphicsQueueFamily(VkPhysicalDevice physicalDevice
 std::optional<uint32_t> queryPresentQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 std::optional<uint32_t> queryVideoQueueFamily(VkPhysicalDevice physicalDevice);
 
-VkImageView createImageView(VkDevice device, VkImage image, VkFormat format);
 VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);

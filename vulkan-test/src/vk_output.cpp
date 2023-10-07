@@ -8,8 +8,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-VulkanOutput::VulkanOutput(OutputSharedEngineState sharedEngineState) {
+VulkanOutput::VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanEngine* pDevice) {
     VulkanOutput::sharedEngineState = sharedEngineState;
+    VulkanOutput::pDevice = pDevice;
 }
 
 void VulkanOutput::initWindow() {
@@ -87,7 +88,7 @@ void VulkanOutput::initSurface() {
     swapChainImageViews.resize(swapChainImages.size());
 
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-        swapChainImageViews[i] = createImageView(sharedEngineState.device, swapChainImages[i], swapChainImageFormat);
+        swapChainImageViews[i] = pDevice->createImageView(swapChainImages[i], swapChainImageFormat, nullptr);
     }
 }
 
@@ -370,7 +371,7 @@ void VulkanOutput::initUniformBuffer() {
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(sharedEngineState.device, sharedEngineState.physicalDevice, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        pDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i], nullptr);
 
         vkMapMemory(sharedEngineState.device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
     }

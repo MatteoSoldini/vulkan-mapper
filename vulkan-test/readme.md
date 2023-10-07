@@ -1,20 +1,26 @@
 # doing
 - [ ] fullscreen projection window
 	- [x] implementation
+	- [x] FIXME: closing app with projection window open causes validation error
 	- [ ] test on second monitor
-	- [ ] FIXME: closing app with projection window open causes validation error
-- [ ] Video
-	- Useful links:
-		1. [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
-		2. [wicked engine github]()
-	- Dynamic load extension functions
+- [ ] Video decode
+	- [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
+	- dynamic load extensions functions
 		- [reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
 		- (alternative) [volk](https://github.com/zeux/volk)
 		- using volk
-	- [ ] load video
+	- [x] load video stream
 	- [x] init decode
 	- [x] create textures
-	- [ ] decode frame
+	- [ ] ycbcr sampler
+		- [vulkan guide](https://github.com/KhronosGroup/Vulkan-Guide/blob/main/chapters/extensions/VK_KHR_sampler_ycbcr_conversion.adoc)
+		- As is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
+	- [ ] decode a frame
+		- [ ] fix image
+	- [ ] video on plane
+	- [ ] barrier?
+	- [ ] multiple video
+	- [ ] single image is broken
 
 # to do
 - isolate imgui init function in its own class

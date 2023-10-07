@@ -83,9 +83,10 @@ private:
         // presentation
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         // video decode
+        VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
         VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
         VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
-        VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME
+        VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
     };
     
     const uint32_t VERTICES_COUNT = 128;
@@ -103,15 +104,27 @@ private:
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
-    VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> uniformBufferSets;
+    
+    // samplers
     VkSampler textureSampler;
+    VkSamplerYcbcrConversion ycbcrSamplerConversion;
+    VkSamplerYcbcrConversionInfo ycbcrSamplerConversionInfo;
+    VkSampler ycbcrFrameSampler;
+
+    // command pools - graphics
+    VkCommandPool commandPool;
+    std::vector<VkCommandBuffer> commandBuffers;
+
+    // command pools - video decode
+    VkQueue videoQueue;
+    VkCommandPool videoCommandPool;
+    VkCommandBuffer videoCommandBuffer;
 
     // queue families
     std::optional<uint32_t> graphicsFamily;
@@ -164,19 +177,18 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
-
+    
+    // validation layer
     #ifdef NDEBUG
         const bool enableValidationLayers = false;
     #else
         const bool enableValidationLayers = true;
     #endif
-    VkCommandBuffer beginSingleTimeCommands();
-
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
     bool checkValidationLayerSupport();
+
+    // command buffer
+    VkCommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
@@ -208,9 +220,7 @@ private:
 
     void createFramebuffers(std::vector<VkFramebuffer>& frameBuffers, VkRenderPass renderPass);
 
-    void createCommandPool(VkCommandPool* commandPool, VkCommandPoolCreateFlags flags);
-
-    void createCommandBuffers(std::vector<VkCommandBuffer>& commandBuffers, VkCommandPool& commandPool);
+    void createCommandPools();
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
@@ -220,7 +230,7 @@ private:
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
-    void createTextureSampler();
+    void createSamplers();
 
     void createVertexBuffer();
 
@@ -250,7 +260,6 @@ private:
 
     void cleanup();
 
-
     // imgui
     void initImGui();
     void imGuiCleanup();
@@ -261,34 +270,53 @@ private:
     void cleanupViewportRender();
     void recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex);
 
+    // TEMP
+    VkDescriptorSet temp;
+
 public:
     void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
 
+    void loadVideoFrame(VkImageView frameView);
+
+    // output
     bool getShowOutput();
     void setShowOutput(bool showOutput);
 
+    // viewport
     VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
     
-    Scene* getScene() {
-        return pScene;
-    }
+    // scene
+    Scene* getScene() { return pScene; }
 
-    MediaManager* getMediaManager() {
-        return pMediaManager;
-    }
+    // media manager
+    MediaManager* getMediaManager() { return pMediaManager; }
     
-    VkDevice getDevice() {
-        return device;
-    }
+    // device
+    VkDevice getDevice() { return device; }
 
-    std::vector<VkCommandBuffer> getCommandBuffers() {
-        return commandBuffers;
-    }
+    // physicalDevice
+    VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
 
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+    // command buffers
+    std::vector<VkCommandBuffer> getCommandBuffers() { return commandBuffers; }
+    VkCommandBuffer getVideoCommandBuffer() { return videoCommandBuffer; }
 
-    // future shared device operations
+    // queues
+    VkQueue getVideoQueue() { return videoQueue; }
+    
+    // queue indexes
+    uint32_t getVideoQueueFamilyIndex() { return videoFamily.value(); }
+
+    // image operations
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext);
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-    
+    VkImageView createImageView(VkImage image, VkFormat format, void* pNext);
+
+    // samplers
+    VkSampler getYcbcrFrameSampler() { return ycbcrFrameSampler; }
+    VkSamplerYcbcrConversion getYcbcrSamplerConversion() { return ycbcrSamplerConversion; }
+
+    // buffers operations
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* pNext);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 };

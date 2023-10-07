@@ -1,14 +1,19 @@
 #include "../include/media_manager.h"
+#include "../include/vk_video.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stdexcept>
 
+MediaManager::MediaManager(VulkanEngine* pEngine) {
+    MediaManager::pEngine = pEngine;
+}
+
 void MediaManager::loadImage(std::string filePath) {
     uint8_t newId = 0;
 
     // find new id
-    for (auto image : images) {
+    for (auto image : medias) {
         if (image.id >= newId) {
             newId = image.id + 1;
         }
@@ -28,13 +33,19 @@ void MediaManager::loadImage(std::string filePath) {
     // free data
     stbi_image_free(pixels);
 
-    MediaImage newImage{};
+    Media newImage{};
     newImage.id = newId;
+    newImage.type = MediaType::Image;
     newImage.filePath = filePath;
 
-    images.push_back(newImage);
+    medias.push_back(newImage);
 }
 
-std::vector<MediaImage> MediaManager::getMedias() {
-    return images;
+void MediaManager::loadVideo(std::string filePath) {
+    VulkanVideo* video = new VulkanVideo(pEngine, "video_test.mp4");
+    pEngine->loadVideoFrame(video->decodeFrame());
+}
+
+std::vector<Media> MediaManager::getMedias() {
+    return medias;
 }

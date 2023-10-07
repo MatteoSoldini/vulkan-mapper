@@ -15,19 +15,19 @@ Marker::Marker(Scene* scene_ptr, float pos_x, float pos_y, glm::vec3 color, uint
 }
 
 std::vector<Vertex> Marker::getVertices() {
-    glm::vec3 final_color = color;
+    glm::vec3 finalColor = color;
     
     if (highlighted) {
-        final_color.r += .2f;
-        final_color.g += .2f;
-        final_color.b += .2f;
+        finalColor.r += .2f;
+        finalColor.g += .2f;
+        finalColor.b += .2f;
     }
 
     return {
-        {{ -Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f }, final_color, {1.0f, 0.0f}},
-        {{ Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {0.0f, 0.0f}},
-        {{ Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {0.0f, 1.0f}},
-        {{ -Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, final_color, {1.0f, 1.0f}}
+        {{ -Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f }, finalColor, {1.0f, 0.0f}},
+        {{ Marker::dimension / 2 + Marker::pos_x, -Marker::dimension / 2 + Marker::pos_y, -1.0f}, finalColor, {0.0f, 0.0f}},
+        {{ Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, finalColor, {0.0f, 1.0f}},
+        {{ -Marker::dimension / 2 + Marker::pos_x, Marker::dimension / 2 + Marker::pos_y, -1.0f}, finalColor, {1.0f, 1.0f}}
     };
 }
 
