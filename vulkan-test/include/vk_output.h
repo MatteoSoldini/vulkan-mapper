@@ -34,7 +34,7 @@ struct OutputSharedEngineState {
 	VkBuffer indexBuffer;
 	std::map<uint8_t, Texture>* pTextures;
 	VkDescriptorSetLayout uniformBufferLayout;
-	VkDescriptorSetLayout singleTextureLayout;
+	VkDescriptorSetLayout textureLayout;
 	Scene* pScene;
 };
 

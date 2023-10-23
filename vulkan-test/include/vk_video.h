@@ -4,9 +4,12 @@
 #include <volk.h>
 #include "vk_engine.h"
 
-// implementation stolen from: https://wickedengine.net/2023/05/07/vulkan-video-decoding/
+class VulkanEngine;
 
+// implementation stolen from: https://wickedengine.net/2023/05/07/vulkan-video-decoding/
 #define FRAME_FORMAT VK_FORMAT_G8_B8R8_2PLANE_420_UNORM		//YUV420
+
+struct Texture;
 
 typedef struct {
 	uint8_t* buffer;
@@ -62,13 +65,17 @@ private:
 
 	// frames used to generate p-frames, also known as decoded picture buffer (dpb) slots
 	uint32_t numDpbSlots = 0;
-	std::vector<Texture> dpbTextures;
-	std::vector<uint8_t> referenceSlots;
-	uint8_t nextDpbPosition = 0;
-	uint8_t currentDpbPosition = 0;
+	std::vector<uint8_t> referencePositions;	// positions of the reference frames (slots) inside the dpb
+	uint8_t nextDecodePosition = 0;
+	uint8_t currentDecodePosition = 0;
 
-	// max number of frame used as reference (same as numDpbSlots)
-	//uint32_t numReferenceFrames = 0;
+	// the backing store of DPB slots
+	VkImage dpbImage;	// multi layer
+	VkDeviceMemory dpbImageMemory;
+	VkImageView dpbImageView;
+	std::vector<VkImageView> decodedImageViews;	
+
+	//uint32_t numReferenceFrames = 0;	// max number of frame used as reference (same as numDpbSlots)
 
 	// profile & capabilities
 	VkVideoDecodeH264ProfileInfoKHR decodeProfile;
@@ -84,11 +91,15 @@ private:
 	VkVideoSessionParametersKHR videoSessionParameters;
 	VkVideoSessionKHR videoSession = VK_NULL_HANDLE;
 
+	// sync
+	VkFence decodeFence;
+
 	void loadVideo(std::string filePath);
 	void queryDecodeVideoCapabilities();
 	void loadVideoData();
 	void createVideoSession();
 	void createDpbTextures();
+
 
 public:
 	VulkanVideo(VulkanEngine* pDevice, std::string filePath);

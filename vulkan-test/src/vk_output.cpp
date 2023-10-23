@@ -325,7 +325,7 @@ void VulkanOutput::loadPipeline() {
     // create pipeline layout
     std::vector<VkDescriptorSetLayout> layouts = {
         sharedEngineState.uniformBufferLayout,
-        sharedEngineState.singleTextureLayout
+        sharedEngineState.textureLayout
     };
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

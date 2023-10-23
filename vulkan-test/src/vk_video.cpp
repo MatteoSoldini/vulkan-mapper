@@ -15,7 +15,6 @@ typedef size_t ssize_t;
 #include "../include/h264.h"
 #include <algorithm>
 
-#include "../include/vk_engine.h"
 #include "../include/vk_utils.h"
 
 static int read_callback(int64_t offset, void* buffer, size_t size, void* token) {
@@ -25,7 +24,13 @@ static int read_callback(int64_t offset, void* buffer, size_t size, void* token)
     return to_copy != size;
 }
 
-void VulkanVideo::createVideoSession() {    
+void VulkanVideo::createVideoSession() {
+    // create fence
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    vkCreateFence(pDevice->getDevice(), &fenceInfo, nullptr, &decodeFence);
+
     // create video session
     VkVideoSessionCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
@@ -116,118 +121,188 @@ void VulkanVideo::createVideoSession() {
 }
 
 void VulkanVideo::createDpbTextures() {
-    dpbTextures.resize(numDpbSlots);
-    
-    for (int i=0; i<numDpbSlots; i++) {
-        VkImage image;
-        VkDeviceMemory imageMemory;
+    // create image
+    VkVideoProfileListInfoKHR profileListInfo = {};
+    profileListInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
+    profileListInfo.pProfiles = &videoProfile;
+    profileListInfo.profileCount = 1;
 
-        VkVideoProfileListInfoKHR profileListInfo = {};
-        profileListInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
-        profileListInfo.pProfiles = &videoProfile;
-        profileListInfo.profileCount = 1;
-
-        VkImageUsageFlags usageFlags = 0;
-        usageFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR;
-        usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR;
-        usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
+    VkImageUsageFlags usageFlags = 0;
+    usageFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR;
+    usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR;
+    usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
 
 
-        pDevice->createImage(
-            width,
-            height,
-            FRAME_FORMAT,
-            VK_IMAGE_TILING_OPTIMAL,
-            usageFlags,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            image,
-            imageMemory,
-            &profileListInfo
-        );
+    pDevice->createImage(
+        width,
+        height,
+        numDpbSlots,
+        FRAME_FORMAT,
+        VK_IMAGE_TILING_OPTIMAL,
+        usageFlags,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        dpbImage,
+        dpbImageMemory,
+        &profileListInfo
+    );
 
-        pDevice->transitionImageLayout(image, FRAME_FORMAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    pDevice->transitionImageLayout(dpbImage, FRAME_FORMAT, numDpbSlots, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+    // dpb image view
+    VkSamplerYcbcrConversionInfo conversionInfo = {};
+    conversionInfo.conversion = pDevice->getYcbcrSamplerConversion();
+    conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
+    conversionInfo.pNext = nullptr;
+
+    // image view
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = dpbImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    viewInfo.format = FRAME_FORMAT;
+
+    // subresourceRange describes what the image's purposvie is and which part of the image should be accessed
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;             // the first mipmap level accessible to the view
+    viewInfo.subresourceRange.levelCount = 1;               // the number of mipmap levels (starting from baseMipLevel) accessible to the view
+    viewInfo.subresourceRange.baseArrayLayer = 0;           // the first array layer accessible to the view
+    viewInfo.subresourceRange.layerCount = numDpbSlots;     // the number of array layers (starting from baseArrayLayer) accessible to the view
+    viewInfo.pNext = &conversionInfo;
+
+    if (vkCreateImageView(pDevice->getDevice(), &viewInfo, nullptr, &dpbImageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture image view!");
+    }
+
+    // decoded image view
+    decodedImageViews.resize(numDpbSlots);    // resize image view
+    for (int i = 0; i < numDpbSlots; i++) {
         VkSamplerYcbcrConversionInfo conversionInfo = {};
         conversionInfo.conversion = pDevice->getYcbcrSamplerConversion();
         conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
         conversionInfo.pNext = nullptr;
 
-        Texture texture = {};
-        texture.image = image;
-        texture.imageMemory = imageMemory;
-        texture.width = width;
-        texture.height = height;
-        texture.imageView = pDevice->createImageView(image, FRAME_FORMAT, &conversionInfo);
-        texture.descriptorSet = nullptr;
+        // image view
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = dpbImage;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = FRAME_FORMAT;
 
-        dpbTextures[i] = texture;
+        // subresourceRange describes what the image's purpose is and which part of the image should be accessed
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;         // the first mipmap level accessible to the view
+        viewInfo.subresourceRange.levelCount = 1;           // the number of mipmap levels (starting from baseMipLevel) accessible to the view
+        viewInfo.subresourceRange.baseArrayLayer = i;       // the first array layer accessible to the view
+        viewInfo.subresourceRange.layerCount = 1;           // the number of array layers (starting from baseArrayLayer) accessible to the view
+        viewInfo.pNext = &conversionInfo;
+
+        if (vkCreateImageView(pDevice->getDevice(), &viewInfo, nullptr, &decodedImageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create texture image view!");
+        }
     }
 }
 
 VkImageView VulkanVideo::decodeFrame() {
+    // TEMP: wait for previous frame
+    vkWaitForFences(pDevice->getDevice(), 1, &decodeFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(pDevice->getDevice(), 1, &decodeFence);
+
     const FrameInfo currentFrameInfo = frameInfos[currentFrame];
     
     // reset dpb on intra frame
     if (currentFrameInfo.type == FrameType::IntraFrame) {
-        referenceSlots.clear();
-        currentDpbPosition = 0;
-        nextDpbPosition = 0;
+        //std::cout << "intra frame" << std::endl;
+        referencePositions.clear();
+        currentDecodePosition = 0;
+        nextDecodePosition = 0;
     }
 
+    // update dpb position
+    currentDecodePosition = nextDecodePosition;
+
     // TODO: ensure that referenced dpb slots are in SRC state
-    
     const h264::SliceHeader* frameSliceHeader = (const h264::SliceHeader*)frameSliceHeaderData.data() + currentFrame;
     const h264::PPS* pps = (const h264::PPS*)ppsData.data() + frameSliceHeader->pic_parameter_set_id;
     const h264::SPS* sps = (const h264::SPS*)spsData.data() + pps->seq_parameter_set_id;
 
     VkCommandBuffer commandBuffer = pDevice->getVideoCommandBuffer();
 
-    // fill dpb infos
-    VkVideoReferenceSlotInfoKHR tempReferenceSlotInfos[17] = {};
-    VkVideoPictureResourceInfoKHR referenceSlotPictures[17] = {};
-    VkVideoDecodeH264DpbSlotInfoKHR dpbSlotsH264[17] = {};
-    StdVideoDecodeH264ReferenceInfo referenceInfosH264[17] = {};
-    for (uint32_t i = 0; i < numDpbSlots; i++) {
-        VkVideoReferenceSlotInfoKHR& slot = tempReferenceSlotInfos[i];
-        VkVideoPictureResourceInfoKHR& pic = referenceSlotPictures[i];
-        VkVideoDecodeH264DpbSlotInfoKHR& dpb = dpbSlotsH264[i];
-        StdVideoDecodeH264ReferenceInfo& ref = referenceInfosH264[i];
+    // (reference) slots info
+    std::vector<VkVideoReferenceSlotInfoKHR> referenceSlotInfos;
+    int refSlotPositionsCount = referencePositions.size();
+    referenceSlotInfos.resize(refSlotPositionsCount + 1);
+    
+    // set reference slots
+    for (size_t i = 0; i < refSlotPositionsCount; i++) {
+        uint32_t refSlotPosition = referencePositions[i];
+        assert(refSlotPosition != currentDecodePosition);  // decode slot should not be overwritten by a reference frame
 
-        slot.sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
-        slot.pPictureResource = &pic;
-        slot.slotIndex = i;
-        slot.pNext = &dpb;
+        VkVideoPictureResourceInfoKHR picRefSlotInfo = {};
+        picRefSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
+        picRefSlotInfo.codedOffset.x = 0;
+        picRefSlotInfo.codedOffset.y = 0;
+        picRefSlotInfo.codedExtent.width = width;
+        picRefSlotInfo.codedExtent.height = height;
+        picRefSlotInfo.baseArrayLayer = refSlotPosition; // i
+        picRefSlotInfo.imageViewBinding = dpbImageView;
 
-        pic.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
-        pic.codedOffset.x = 0;
-        pic.codedOffset.y = 0;
-        pic.codedExtent.width = width;
-        pic.codedExtent.height = height;
-        pic.baseArrayLayer = i;
-        pic.imageViewBinding = dpbTextures[i].imageView;
+        StdVideoDecodeH264ReferenceInfo h264RefInfo = {};
+        h264RefInfo.flags.bottom_field_flag = 0;
+        h264RefInfo.flags.top_field_flag = 0;
+        h264RefInfo.flags.is_non_existing = 0;
+        h264RefInfo.flags.used_for_long_term_reference = 0;
+        h264RefInfo.FrameNum = frameSliceHeader->frame_num;
+        h264RefInfo.PicOrderCnt[0] = currentFrameInfo.poc;
+        h264RefInfo.PicOrderCnt[1] = currentFrameInfo.poc;
 
-        dpb.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR;
-        dpb.pStdReferenceInfo = &ref;
+        VkVideoDecodeH264DpbSlotInfoKHR h264SlotInfo = {};
+        h264SlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR;
+        h264SlotInfo.pStdReferenceInfo = &h264RefInfo;
 
-        ref.flags.bottom_field_flag = 0;
-        ref.flags.top_field_flag = 0;
-        ref.flags.is_non_existing = 0;
-        ref.flags.used_for_long_term_reference = 0;
-        ref.FrameNum = frameSliceHeader->frame_num;
-        ref.PicOrderCnt[0] = currentFrameInfo.poc;
-        ref.PicOrderCnt[1] = currentFrameInfo.poc;
+        VkVideoReferenceSlotInfoKHR refSlotInfo = {};
+        refSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
+        refSlotInfo.pPictureResource = &picRefSlotInfo;
+        refSlotInfo.slotIndex = refSlotPosition;
+        refSlotInfo.pNext = &h264SlotInfo;
+        
+        // set slot
+        referenceSlotInfos[i] = refSlotInfo;
     }
 
-    VkVideoReferenceSlotInfoKHR referenceSlotInfos[17] = {};
-    for (size_t i = 0; i < referenceSlots.size(); ++i) {
-        uint32_t refSlot = referenceSlots[i];
-        assert(refSlot != currentDpbPosition);
-        referenceSlotInfos[i] = tempReferenceSlotInfos[refSlot];
-    }
-    referenceSlotInfos[referenceSlots.size()] = tempReferenceSlotInfos[currentDpbPosition];
-    referenceSlotInfos[referenceSlots.size()].slotIndex = -1;
+    // create decode slot
+    VkVideoPictureResourceInfoKHR picRefSlotInfo = {};
+    picRefSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
+    picRefSlotInfo.codedOffset.x = 0;
+    picRefSlotInfo.codedOffset.y = 0;
+    picRefSlotInfo.codedExtent.width = width;
+    picRefSlotInfo.codedExtent.height = height;
+    picRefSlotInfo.baseArrayLayer = currentDecodePosition; // i
+    picRefSlotInfo.imageViewBinding = dpbImageView;
 
+    StdVideoDecodeH264ReferenceInfo h264RefInfo = {};
+    h264RefInfo.flags.bottom_field_flag = 0;
+    h264RefInfo.flags.top_field_flag = 0;
+    h264RefInfo.flags.is_non_existing = 0;
+    h264RefInfo.flags.used_for_long_term_reference = 0;
+    h264RefInfo.FrameNum = frameSliceHeader->frame_num;
+    h264RefInfo.PicOrderCnt[0] = currentFrameInfo.poc;
+    h264RefInfo.PicOrderCnt[1] = currentFrameInfo.poc;
+
+    VkVideoDecodeH264DpbSlotInfoKHR h264SlotInfo = {};
+    h264SlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR;
+    h264SlotInfo.pStdReferenceInfo = &h264RefInfo;
+
+    VkVideoReferenceSlotInfoKHR dstSlotInfo = {};
+    dstSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
+    dstSlotInfo.pPictureResource = &picRefSlotInfo;
+    dstSlotInfo.slotIndex = currentDecodePosition;
+    dstSlotInfo.pNext = &h264SlotInfo;
+
+    referenceSlotInfos[refSlotPositionsCount] = dstSlotInfo;
+    referenceSlotInfos[refSlotPositionsCount].slotIndex = -1; // target of picture reconstruction
+    
+    // stuff
     StdVideoDecodeH264PictureInfo stdPictureInfoH264 = {};
     stdPictureInfoH264.pic_parameter_set_id = frameSliceHeader->pic_parameter_set_id;
     stdPictureInfoH264.seq_parameter_set_id = pps->seq_parameter_set_id;
@@ -260,12 +335,14 @@ VkImageView VulkanVideo::decodeFrame() {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
 
+    // begin coding
+    // include all slots
     VkVideoBeginCodingInfoKHR videoBeginInfo = {};
     videoBeginInfo.sType = VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR;
     videoBeginInfo.videoSession = videoSession;
     videoBeginInfo.videoSessionParameters = videoSessionParameters;
-    videoBeginInfo.referenceSlotCount = referenceSlots.size() + 1; // add in the current reconstructed DPB image
-    videoBeginInfo.pReferenceSlots = videoBeginInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos;
+    videoBeginInfo.referenceSlotCount = referencePositions.size() + 1; // add in the current reconstructed DPB image
+    videoBeginInfo.pReferenceSlots = videoBeginInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos.data();
     
     vkCmdBeginVideoCodingKHR(commandBuffer, &videoBeginInfo);
 
@@ -277,16 +354,16 @@ VkImageView VulkanVideo::decodeFrame() {
         vkCmdControlVideoCodingKHR(commandBuffer, &controlInfo);
     }
 
-    // run command
+    // include only the slots that are used as reference
     VkVideoDecodeInfoKHR decodeInfo = {};
     decodeInfo.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_INFO_KHR;
     decodeInfo.srcBuffer = videoBitStreamBuffer;
     decodeInfo.srcBufferOffset = (VkDeviceSize)currentFrameInfo.offset;
     decodeInfo.srcBufferRange = (VkDeviceSize)((currentFrameInfo.size + bitStreamAlignment - 1) / bitStreamAlignment) * bitStreamAlignment;
-    decodeInfo.dstPictureResource = *tempReferenceSlotInfos[currentDpbPosition].pPictureResource;
-    decodeInfo.referenceSlotCount = referenceSlots.size();
-    decodeInfo.pReferenceSlots = decodeInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos;
-    decodeInfo.pSetupReferenceSlot = &tempReferenceSlotInfos[currentDpbPosition];
+    decodeInfo.dstPictureResource = *dstSlotInfo.pPictureResource;
+    decodeInfo.referenceSlotCount = referencePositions.size();
+    decodeInfo.pReferenceSlots = decodeInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos.data();
+    decodeInfo.pSetupReferenceSlot = &dstSlotInfo;
     decodeInfo.pNext = &pictureInfoH264;
 
     vkCmdDecodeVideoKHR(commandBuffer, &decodeInfo);
@@ -307,16 +384,26 @@ VkImageView VulkanVideo::decodeFrame() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(pDevice->getVideoQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueSubmit(pDevice->getVideoQueue(), 1, &submitInfo, decodeFence);
 
     // dpb management
-    // TODO
+    if (currentFrameInfo.referencePriority > 0) {   // if frame is used as reference
+        if (referencePositions.size() < 1) {
+            referencePositions.resize(1);
+            //referenceSlotPositions.resize(referenceSlotPositions.size() + 1);
+        }
+        referencePositions[0] = currentDecodePosition;
+        nextDecodePosition = ++nextDecodePosition % numDpbSlots;
+        // ignoring wickedengine's next_slot
+    }
+
+    // debug
+    std::cout << "frame: " << currentFrame << "\t" << "current: " << (int)currentDecodePosition << std::endl;
 
     // advance frame
-    currentFrame = ++currentFrame & framesCount;
+    currentFrame = ++currentFrame % framesCount;
 
-
-    return dpbTextures[0].imageView;
+    return decodedImageViews[currentDecodePosition];
 }
 
 VulkanVideo::VulkanVideo(VulkanEngine* pDevice, std::string filePath) {
@@ -505,6 +592,8 @@ void VulkanVideo::loadVideo(std::string filePath) {
             info.timestampSeconds = float(double(timestamp) * timescaleRcp);
             info.durationSeconds = float(double(duration) * timescaleRcp);
 
+            std::cout << info.timestampSeconds << "\t" << info.type << "\t" << info.size << std::endl;
+
             // push to array
             frameInfos.push_back(info);
         }
@@ -691,6 +780,8 @@ void VulkanVideo::loadVideoData() {
     std::vector<StdVideoH264SequenceParameterSetVui> vuiArrayH264(spsCount);
     std::vector<StdVideoH264HrdParameters> hrdArrayH264(spsCount);
     
+    uint32_t numReferenceFrames = 0;
+
     for (uint32_t i = 0; i < spsCount; ++i) {
         const h264::SPS* sps = (const h264::SPS*)spsData.data() + i;
         StdVideoH264SequenceParameterSet& vkSps = spsArrayH264[i];
@@ -845,9 +936,9 @@ void VulkanVideo::loadVideoData() {
         vkSps.frame_crop_bottom_offset = sps->frame_crop_bottom_offset;
         vkSps.pOffsetForRefFrame = sps->offset_for_ref_frame;
 
-        //numReferenceFrames = std::max(numReferenceFrames, (uint32_t)sps->num_ref_frames);
+        numReferenceFrames = std::max(numReferenceFrames, (uint32_t)sps->num_ref_frames);
     }
 
     // *2: top and bottom field counts as two I think: https://vulkan.lunarg.com/doc/view/1.3.239.0/windows/1.3-extensions/vkspec.html#_video_decode_commands
-    //numReferenceFrames = std::min(numReferenceFrames*2, videoCapabilities.maxActiveReferencePictures);
+    numReferenceFrames = std::min(numReferenceFrames*2, videoCapabilities.maxActiveReferencePictures);
 }

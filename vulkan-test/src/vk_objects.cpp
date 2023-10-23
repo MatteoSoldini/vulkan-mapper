@@ -104,7 +104,7 @@ std::vector<uint16_t> Plane::getIndices() {
 
 std::string Plane::getPipelineName() {
     if (imageId != -1) {
-        return "texture";
+        return "video_frame";
     }
     else return "color";
 }

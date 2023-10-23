@@ -3,24 +3,30 @@
 	- [x] implementation
 	- [x] FIXME: closing app with projection window open causes validation error
 	- [ ] test on second monitor
-- [ ] Video decode
-	- [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
-	- dynamic load extensions functions
-		- [reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
-		- (alternative) [volk](https://github.com/zeux/volk)
-		- using volk
-	- [x] load video stream
-	- [x] init decode
-	- [x] create textures
-	- [ ] ycbcr sampler
-		- [vulkan guide](https://github.com/KhronosGroup/Vulkan-Guide/blob/main/chapters/extensions/VK_KHR_sampler_ycbcr_conversion.adoc)
-		- As is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
-	- [ ] decode a frame
-		- [ ] fix image
-	- [ ] video on plane
-	- [ ] barrier?
-	- [ ] multiple video
-	- [ ] single image is broken
+- [ ] video decode
+	- notes:
+		- [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
+		- dynamic load extensions functions
+			- [reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
+			- (alternative) [volk](https://github.com/zeux/volk)
+			- using volk
+		- Terminology:
+			- gop: group of pictures, streak of related decoded frames generated from a single intra frame at the start
+			- dpb: decoded picture buffer, the buffer of the **currently** active reference frames (predictive or intra)
+	- to do:
+		- [x] load video stream
+		- [x] init decode
+		- [ ] create textures
+			- [ ] fix image view, see wickedengine's implementation
+		- [ ] ycbcr sampler
+			- [maister's graphics adventures blog](https://themaister.net/blog/2019/12/01/yuv-sampling-in-vulkan-a-niche-and-complicated-feature-vk_khr_ycbcr_sampler_conversion/) 
+			- as is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
+			- [ ] sampled frame seems too bright
+		- [x] decode a frame
+		- [x] video on plane
+		- [x] dpb
+		- [ ] fence?
+		- [ ] multiple video
 
 # to do
 - isolate imgui init function in its own class

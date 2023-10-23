@@ -457,8 +457,8 @@ void VulkanEngine::createRenderPass() {
 void VulkanEngine::loadPipelines() {
     for (int i = 0; i < pipelinesToLoad.size(); i++) {
         // load shaders
-        auto vertShaderCode = readFile(pipelinesToLoad[i].vertex_shader_file);
-        auto fragShaderCode = readFile(pipelinesToLoad[i].fragment_shader_file);
+        auto vertShaderCode = readFile(pipelinesToLoad[i].vertexShaderFile);
+        auto fragShaderCode = readFile(pipelinesToLoad[i].fragmentShaderFile);
 
         // create shaders
         VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
@@ -506,7 +506,7 @@ void VulkanEngine::loadPipelines() {
         // input assembly
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology = pipelinesToLoad[i].topology;
+        inputAssembly.topology = pipelinesToLoad[i].drawTopology;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
         // create viewport
@@ -575,16 +575,21 @@ void VulkanEngine::loadPipelines() {
         colorBlending.blendConstants[2] = 0.0f; // Optional
         colorBlending.blendConstants[3] = 0.0f; // Optional
 
+        std::vector<VkDescriptorSetLayout> layouts;
+        layouts.resize(pipelinesToLoad[i].descriptorSetLayouts.size());
+        for (int j = 0; j < layouts.size(); j++) {
+            layouts[j] = *(pipelinesToLoad[i].descriptorSetLayouts[j]);
+        }
+
         // create pipeline layout
-        std::vector<VkDescriptorSetLayout> layouts = { uniformBufferLayout, singleTextureLayout };
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
+        pipelineLayoutInfo.setLayoutCount = layouts.size();
         pipelineLayoutInfo.pSetLayouts = layouts.data();
 
-        VkPipelineLayout pipeline_layout;
+        VkPipelineLayout pipelineLayout;
 
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipeline_layout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
         }
 
@@ -600,7 +605,7 @@ void VulkanEngine::loadPipelines() {
         pipelineInfo.pDepthStencilState = nullptr; // Optional
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
-        pipelineInfo.layout = pipeline_layout;   // fixed-function stage
+        pipelineInfo.layout = pipelineLayout;   // fixed-function stage
         pipelineInfo.renderPass = viewportRenderpass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
@@ -621,7 +626,7 @@ void VulkanEngine::loadPipelines() {
 
         Pipeline new_pipeline{};
         new_pipeline.pipeline = pipeline;
-        new_pipeline.pipelineLayout = pipeline_layout;
+        new_pipeline.pipelineLayout = pipelineLayout;
 
         pipelines.emplace(pipelinesToLoad[i].name, new_pipeline);
     }
@@ -762,14 +767,16 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
         // bind texture
         if (pipelineName == "texture") {
-            // TEMP
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &temp, 0, nullptr);
-            
-            /*auto plane = dynamic_cast<Plane*>(object);
+            auto plane = dynamic_cast<Plane*>(object);
             if (plane != nullptr) {
                 Texture texture = textures[plane->getImageId()];
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
-            }*/
+            }
+        }
+
+        // bind video frame
+        if (pipelineName == "video_frame") {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &videoFrameView, 0, nullptr);
         }
 
         if (pipelineName == "line") {
@@ -810,6 +817,7 @@ void VulkanEngine::createSyncObjects() {
             throw std::runtime_error("Failed to create synchronization objects for a frame!");
         }
     }
+
     std::cout << "Synchronization objects created successfully" << std::endl;
 }
 
@@ -850,9 +858,9 @@ void VulkanEngine::recreateViewportSurface(uint32_t width, uint32_t height, uint
     // create destination image
     VkImage image;
     VkDeviceMemory imageMemory;
-    createImage(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory, nullptr);
+    createImage(width, height, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory, nullptr);
 
-    transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, 1, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // create image view
     VkImageView imageView = createImageView(image, VK_FORMAT_R8G8B8A8_SRGB, nullptr);
@@ -888,7 +896,7 @@ void VulkanEngine::recreateViewportSurface(uint32_t width, uint32_t height, uint
     std::cout << "Viewport surface " << currentFrame << " recreated successfully" << std::endl;
 }
 
-void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, uint32_t layerCount, VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkImageMemoryBarrier barrier{};
@@ -902,7 +910,7 @@ void VulkanEngine::transitionImageLayout(VkImage image, VkFormat format, VkImage
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = layerCount;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -1028,7 +1036,7 @@ void VulkanEngine::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
 }
 
-void VulkanEngine::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext) {
+void VulkanEngine::createImage(uint32_t width, uint32_t height, uint32_t arrayLayers, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext) {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -1036,7 +1044,7 @@ void VulkanEngine::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageInfo.extent.height = height;
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
+    imageInfo.arrayLayers = arrayLayers;
     imageInfo.format = format;
     imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1147,14 +1155,27 @@ void VulkanEngine::createSamplers() {
     VkSamplerYcbcrConversionCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO;
     createInfo.format = FRAME_FORMAT;
-    createInfo.ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR; // from YCbCr to rgb
-    createInfo.ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL_KHR;
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
-    createInfo.xChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN_KHR;
-    createInfo.yChromaOffset = VK_CHROMA_LOCATION_COSITED_EVEN_KHR;
+
+    // Which 3x3 YUV to RGB matrix is used?
+    // 601 is generally used for SD content.
+    // 709 for HD content.
+    // 2020 for UHD content.
+    createInfo.ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709;
+
+    // TV (NARROW) or PC (FULL) range for YUV?
+    // Usually, JPEG uses full range and broadcast content is narrow.
+    // If using narrow, the YUV components need to be
+    // rescaled before it can be converted.
+    createInfo.ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
+
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+    createInfo.xChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
+    createInfo.yChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
+
     createInfo.chromaFilter = VK_FILTER_LINEAR;
     createInfo.pNext = nullptr;
 
@@ -1271,19 +1292,35 @@ void VulkanEngine::createDescriptorSetLayouts() {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 
-    // single texture layout
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding = 0;
-    samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.pImmutableSamplers = &ycbcrFrameSampler;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // texture layout
+    VkDescriptorSetLayoutBinding textureLayoutBinding{};
+    textureLayoutBinding.binding = 0;
+    textureLayoutBinding.descriptorCount = 1;
+    textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureLayoutBinding.pImmutableSamplers = nullptr;
+    textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &samplerLayoutBinding;
+    layoutInfo.pBindings = &textureLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &singleTextureLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &textureLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    // video frame layout
+    VkDescriptorSetLayoutBinding videoFrameLayoutBinding{};
+    videoFrameLayoutBinding.binding = 0;
+    videoFrameLayoutBinding.descriptorCount = 1;
+    videoFrameLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    videoFrameLayoutBinding.pImmutableSamplers = &ycbcrFrameSampler;
+    videoFrameLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &videoFrameLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &videoFrameLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 }
@@ -1320,7 +1357,7 @@ void VulkanEngine::createDescriptorPool() {
     }
 }
 
-void VulkanEngine::createDescriptorSets() {
+void VulkanEngine::createStaticDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uniformBufferLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1465,7 +1502,7 @@ void VulkanEngine::initVulkan() {
     createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
-    createDescriptorSets();
+    createStaticDescriptorSets();
 
     initViewportRender();
     loadPipelines();
@@ -1483,12 +1520,12 @@ void VulkanEngine::initVulkan() {
         indexBuffer,
         &textures,
         uniformBufferLayout,
-        singleTextureLayout,
+        textureLayout,
         pScene,
     }, this);
 
     // TEMP
-    pMediaManager->loadVideo("sas");
+    pMediaManager->loadVideo("video_test.mp4");
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
@@ -1709,7 +1746,7 @@ void VulkanEngine::cleanup() {
 
     // destroy descriptor set layouts
     vkDestroyDescriptorSetLayout(device, uniformBufferLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, singleTextureLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, textureLayout, nullptr);
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -1997,12 +2034,12 @@ void VulkanEngine::loadTexture(uint8_t id, unsigned char* pixels, int width, int
     VkImage texture_image;
     VkDeviceMemory texture_image_memory;
 
-    createImage(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory, nullptr);
+    createImage(width, height, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory, nullptr);
 
-    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, 1, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copyBufferToImage(stagingBuffer, texture_image, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
-    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -2012,7 +2049,7 @@ void VulkanEngine::loadTexture(uint8_t id, unsigned char* pixels, int width, int
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &singleTextureLayout;
+    allocInfo.pSetLayouts = &textureLayout;
 
     VkDescriptorSet descriptor_set;
     if (vkAllocateDescriptorSets(device, &allocInfo, &descriptor_set) != VK_SUCCESS) {
@@ -2105,7 +2142,7 @@ void VulkanEngine::loadVideoFrame(VkImageView imageView) {
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &singleTextureLayout;
+    allocInfo.pSetLayouts = &videoFrameLayout;
 
     VkDescriptorSet descriptorSet;
     if (vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet) != VK_SUCCESS) {
@@ -2131,15 +2168,5 @@ void VulkanEngine::loadVideoFrame(VkImageView imageView) {
     vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);
 
     // TEMP
-    temp = descriptorSet;
-
-    /*Texture new_texture{};
-    new_texture.image = texture_image;
-    new_texture.imageMemory = texture_image_memory;
-    new_texture.imageView = image_view;
-    new_texture.descriptorSet = descriptor_set;
-    new_texture.width = width;
-    new_texture.height = height;
-
-    textures.emplace(id, new_texture);*/
+    videoFrameView = descriptorSet;
 }

@@ -120,6 +120,9 @@ void UI::drawUi() {
 
     // second column - viewport
     ImGui::TableSetColumnIndex(1);
+    if (ImGui::Button("next frame")) {
+        pEngine->getMediaManager()->nextFrame();
+    }
     viewport();
 
     // third column - media manager

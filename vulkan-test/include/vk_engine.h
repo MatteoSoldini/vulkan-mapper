@@ -22,13 +22,14 @@
 
 struct PipelineToLoad {
     std::string name;
-    std::string vertex_shader_file;
-    std::string fragment_shader_file;
-    VkPrimitiveTopology topology;
+    std::string vertexShaderFile;
+    std::string fragmentShaderFile;
+    VkPrimitiveTopology drawTopology;
+    std::vector<VkDescriptorSetLayout*> descriptorSetLayouts;
 };
 
 // runtime object
-struct Texture {
+struct Texture{
     VkImage image;
     VkDeviceMemory imageMemory;
     VkImageView imageView;
@@ -70,9 +71,10 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
     const std::vector<PipelineToLoad> pipelinesToLoad = {
-        PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
-        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
-        PipelineToLoad{"line", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP },
+        PipelineToLoad{"color", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, {&uniformBufferLayout}},
+        PipelineToLoad{"texture", "shaders/vert.spv", "shaders/text.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, {&uniformBufferLayout, &textureLayout}},
+        PipelineToLoad{"line", "shaders/vert.spv", "shaders/col.spv", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, {&uniformBufferLayout} },
+        PipelineToLoad{"video_frame", "shaders/vert.spv", "shaders/text.spv", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, {&uniformBufferLayout, &videoFrameLayout}},
     };
 
     const std::vector<const char*> validationLayers = {
@@ -83,6 +85,7 @@ private:
         // presentation
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         // video decode
+        
         VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
         VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
         VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
@@ -143,7 +146,8 @@ private:
     std::map<std::string, Pipeline> pipelines;
 
     // descriptor set layouts
-    VkDescriptorSetLayout singleTextureLayout;
+    VkDescriptorSetLayout textureLayout;
+    VkDescriptorSetLayout videoFrameLayout;
     VkDescriptorSetLayout uniformBufferLayout;
 
     // uniform buffer
@@ -242,7 +246,7 @@ private:
 
     void createDescriptorPool();
 
-    void createDescriptorSets();
+    void createStaticDescriptorSets();
 
     void initVulkan();
 
@@ -271,7 +275,7 @@ private:
     void recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex);
 
     // TEMP
-    VkDescriptorSet temp;
+    VkDescriptorSet videoFrameView;
 
 public:
     void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
@@ -308,8 +312,8 @@ public:
     uint32_t getVideoQueueFamilyIndex() { return videoFamily.value(); }
 
     // image operations
-    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void createImage(uint32_t width, uint32_t height, uint32_t arrayLayers, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext);
+    void transitionImageLayout(VkImage image, VkFormat format, uint32_t layerCount, VkImageLayout oldLayout, VkImageLayout newLayout);
     VkImageView createImageView(VkImage image, VkFormat format, void* pNext);
 
     // samplers
