@@ -28,6 +28,9 @@ private:
 public:
 	Scene(VulkanEngine* pEngine);
 
+	// TEMP
+	VulkanEngine* getEngine() { return pEngine; };
+
 	int getSelectedObjectId() { return selectedObjId; };
 	int getHoveringObjectId() { return hoveringObjId; };
 	int getDragginObjectId() { return draggingObjId; };

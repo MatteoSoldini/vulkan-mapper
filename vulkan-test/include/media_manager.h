@@ -6,13 +6,15 @@
 
 class VulkanVideo;
 
+typedef uint8_t m_id;
+
 enum MediaType {
 	Image,
 	Video,
 };
 
 struct Media {
-	uint8_t id;
+	m_id id;
 	MediaType type;
 	std::string filePath;
 };
@@ -21,7 +23,7 @@ class MediaManager {
 private:
 	VulkanEngine* pEngine;
 	std::vector<Media> medias;
-	uint8_t newId();
+	m_id newId();
 
 	VulkanVideo* video;
 
@@ -35,6 +37,9 @@ public:
 	// TEMP
 	void nextFrame();
 
+	void decodeFrames();
+
 	std::vector<Media> getMedias();
+	Media* getMediaById(m_id mediaId);
 
 };

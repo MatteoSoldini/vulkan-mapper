@@ -204,6 +204,13 @@ void VulkanVideo::createDpbTextures() {
 }
 
 VkImageView VulkanVideo::decodeFrame() {
+    std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+
+    float frameTime = 1.0f / averageFrameRate;
+    float timePassed = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastDecodeTime).count();
+
+    if (timePassed < frameTime) return decodedImageViews[currentDecodePosition];
+
     // TEMP: wait for previous frame
     vkWaitForFences(pDevice->getDevice(), 1, &decodeFence, VK_TRUE, UINT64_MAX);
     vkResetFences(pDevice->getDevice(), 1, &decodeFence);
@@ -402,6 +409,8 @@ VkImageView VulkanVideo::decodeFrame() {
 
     // advance frame
     currentFrame = ++currentFrame % framesCount;
+
+    lastDecodeTime = std::chrono::high_resolution_clock::now();
 
     return decodedImageViews[currentDecodePosition];
 }

@@ -16,8 +16,8 @@
 	- to do:
 		- [x] load video stream
 		- [x] init decode
-		- [ ] create textures
-			- [ ] fix image view, see wickedengine's implementation
+		- [x] create textures
+			- [x] fix image view, see wickedengine's implementation
 		- [ ] ycbcr sampler
 			- [maister's graphics adventures blog](https://themaister.net/blog/2019/12/01/yuv-sampling-in-vulkan-a-niche-and-complicated-feature-vk_khr_ycbcr_sampler_conversion/) 
 			- as is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
@@ -25,7 +25,9 @@
 		- [x] decode a frame
 		- [x] video on plane
 		- [x] dpb
-		- [ ] fence?
+		- [ ] smooth video playing & synchronization
+			- [ ] rendering image view should be updated only after decode operation (validator error)
+			- [ ] FIX: every loop the image view gets updated since `decodeFrame` returns the current image view from the dpb every time
 		- [ ] multiple video
 
 # to do

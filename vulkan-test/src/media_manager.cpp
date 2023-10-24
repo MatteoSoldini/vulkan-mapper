@@ -11,8 +11,8 @@ MediaManager::MediaManager(VulkanEngine* pEngine) {
     MediaManager::pEngine = pEngine;
 }
 
-uint8_t MediaManager::newId() {
-    uint8_t newId = 0;
+m_id MediaManager::newId() {
+    m_id newId = 0;
 
     // find new id
     for (auto media : medias) {
@@ -26,7 +26,7 @@ uint8_t MediaManager::newId() {
 
 
 void MediaManager::loadImage(std::string filePath) {
-    uint8_t id = newId();
+    m_id id = newId();
     
     // read pixel data
     int width, height, channels;
@@ -51,7 +51,7 @@ void MediaManager::loadImage(std::string filePath) {
 }
 
 void MediaManager::loadVideo(std::string filePath) {
-    uint8_t id = newId();
+    m_id id = newId();
 
     video = new VulkanVideo(pEngine, filePath);
     
@@ -70,6 +70,27 @@ void MediaManager::nextFrame() {
     if (video != nullptr) pEngine->loadVideoFrame(video->decodeFrame());
 }
 
+void MediaManager::decodeFrames() {
+    // check for any video that need decoding
+    for (auto media : medias) {
+        if (media.type == MediaType::Video) {
+            VkImageView result =  video->decodeFrame();
+            pEngine->loadVideoFrame(result); 
+        }
+    }
+}
+
 std::vector<Media> MediaManager::getMedias() {
     return medias;
 }
+
+Media* MediaManager::getMediaById(m_id mediaId) {
+    for (Media media : medias) {
+        if (media.id == mediaId) {
+            return &media;
+        }
+    }
+
+    return nullptr;
+}
+

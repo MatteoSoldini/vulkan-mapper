@@ -769,7 +769,7 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
         if (pipelineName == "texture") {
             auto plane = dynamic_cast<Plane*>(object);
             if (plane != nullptr) {
-                Texture texture = textures[plane->getImageId()];
+                Texture texture = textures[plane->getMediaId()];
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
             }
         }
@@ -1359,15 +1359,18 @@ void VulkanEngine::createDescriptorPool() {
 
 void VulkanEngine::createStaticDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uniformBufferLayout);
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    allocInfo.pSetLayouts = layouts.data();
 
-    uniformBufferSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &allocInfo, uniformBufferSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
+    {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+
+        uniformBufferSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(device, &allocInfo, uniformBufferSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
     }
 
     // binding
@@ -1405,6 +1408,19 @@ void VulkanEngine::createStaticDescriptorSets() {
         */
 
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
+
+    // decoded frame view
+    {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &videoFrameLayout;
+
+        if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameView) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
     }
 }
 
@@ -1691,6 +1707,8 @@ void VulkanEngine::mainLoop() {
     while (!glfwWindowShouldClose(window)) { // to keep the application running until either an error occurs or the window is closed
         // window events
         glfwPollEvents();
+
+        pMediaManager->decodeFrames();
 
         drawFrame();
 
@@ -2137,18 +2155,6 @@ VkDescriptorSet VulkanEngine::renderViewport(uint32_t viewportWidth, uint32_t vi
 }
 
 void VulkanEngine::loadVideoFrame(VkImageView imageView) {
-    // create descriptor set
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &videoFrameLayout;
-
-    VkDescriptorSet descriptorSet;
-    if (vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
-    }
-
     // binding
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2157,7 +2163,7 @@ void VulkanEngine::loadVideoFrame(VkImageView imageView) {
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites.dstSet = descriptorSet;
+    descriptorWrites.dstSet = videoFrameView;
     descriptorWrites.dstBinding = 0;
     descriptorWrites.dstArrayElement = 0;
     descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -2166,7 +2172,4 @@ void VulkanEngine::loadVideoFrame(VkImageView imageView) {
     descriptorWrites.pNext = nullptr;
 
     vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);
-
-    // TEMP
-    videoFrameView = descriptorSet;
 }

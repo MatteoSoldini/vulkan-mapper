@@ -40,14 +40,14 @@ void UI::drawMediaManager() {
         bool selected = false;
 
         if (pSelectedPlane != nullptr) {
-            if (pSelectedPlane->getImageId() == media.id) {
+            if (pSelectedPlane->getMediaId() == media.id) {
                 selected = true;
             }
         }
 
         if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
             if (pSelectedPlane != nullptr) {
-                pSelectedPlane->setImageId(media.id);
+                pSelectedPlane->setMediaId(media.id);
             }
         }
     }

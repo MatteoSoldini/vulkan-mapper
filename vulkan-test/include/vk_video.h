@@ -3,6 +3,7 @@
 #include <vector>
 #include <volk.h>
 #include "vk_engine.h"
+#include <chrono>
 
 class VulkanEngine;
 
@@ -86,6 +87,8 @@ private:
 	uint64_t bitStreamAlignment;
 
 	int currentFrame = 0;
+
+	std::chrono::steady_clock::time_point lastDecodeTime = std::chrono::high_resolution_clock::now();
 
 	// decoder -> CHECKME: consider moving to vulkan device class
 	VkVideoSessionParametersKHR videoSessionParameters;

@@ -103,14 +103,17 @@ std::vector<uint16_t> Plane::getIndices() {
 }
 
 std::string Plane::getPipelineName() {
-    if (imageId != -1) {
-        return "video_frame";
+    if (mediaId != -1) {
+        Media* pMedia = pScene->getEngine()->getMediaManager()->getMediaById(mediaId);
+        if (pMedia->type == MediaType::Image) { return "texture"; }
+        else if (pMedia->type == MediaType::Video) { return "video_frame"; }
+        else return "color";
     }
     else return "color";
 }
 
-void Plane::setImageId(uint8_t id) {
-    Plane::imageId = id;
+void Plane::setMediaId(uint8_t id) {
+    Plane::mediaId = id;
 }
 
 void Plane::hoveringStart() {

@@ -264,6 +264,10 @@ private:
 
     void cleanup();
 
+    // video decode
+    // TEMP
+    VkDescriptorSet videoFrameView;
+
     // imgui
     void initImGui();
     void imGuiCleanup();
@@ -274,12 +278,10 @@ private:
     void cleanupViewportRender();
     void recreateViewportSurface(uint32_t width, uint32_t height, uint32_t surfaceIndex);
 
-    // TEMP
-    VkDescriptorSet videoFrameView;
-
 public:
     void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
 
+    // video decode
     void loadVideoFrame(VkImageView frameView);
 
     // output
