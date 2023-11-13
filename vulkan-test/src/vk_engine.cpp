@@ -776,7 +776,29 @@ void VulkanEngine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
         // bind video frame
         if (pipelineName == "video_frame") {
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &videoFrameView, 0, nullptr);
+            // bind if necessary
+            if (videoFrameView != prevVideoFrameView) {
+                VkDescriptorImageInfo imageInfo{};
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfo.imageView = videoFrameView;
+                imageInfo.sampler = ycbcrFrameSampler;
+
+                VkWriteDescriptorSet descriptorWrites{};
+                descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites.dstSet = videoFrameViews[currentFrame];
+                descriptorWrites.dstBinding = 0;
+                descriptorWrites.dstArrayElement = 0;
+                descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites.descriptorCount = 1;
+                descriptorWrites.pImageInfo = &imageInfo;
+                descriptorWrites.pNext = nullptr;
+
+                vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);   // executed immediately
+
+                prevVideoFrameView = videoFrameView;
+            }
+
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &videoFrameViews[currentFrame], 0, nullptr);
         }
 
         if (pipelineName == "line") {
@@ -1412,14 +1434,17 @@ void VulkanEngine::createStaticDescriptorSets() {
 
     // decoded frame view
     {
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &videoFrameLayout;
+        videoFrameViews.resize(MAX_FRAMES_IN_FLIGHT);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = descriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &videoFrameLayout;
 
-        if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate descriptor sets!");
+            if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to allocate descriptor sets!");
+            }
         }
     }
 }
@@ -2155,21 +2180,25 @@ VkDescriptorSet VulkanEngine::renderViewport(uint32_t viewportWidth, uint32_t vi
 }
 
 void VulkanEngine::loadVideoFrame(VkImageView imageView) {
+    videoFrameView = imageView;
+
     // binding
-    VkDescriptorImageInfo imageInfo{};
+    /*VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = imageView;
     imageInfo.sampler = ycbcrFrameSampler;
+    
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkWriteDescriptorSet descriptorWrites{};
+        descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.dstSet = videoFrameViews[i];
+        descriptorWrites.dstBinding = 0;
+        descriptorWrites.dstArrayElement = 0;
+        descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites.descriptorCount = 1;
+        descriptorWrites.pImageInfo = &imageInfo;
+        descriptorWrites.pNext = nullptr;
 
-    VkWriteDescriptorSet descriptorWrites{};
-    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites.dstSet = videoFrameView;
-    descriptorWrites.dstBinding = 0;
-    descriptorWrites.dstArrayElement = 0;
-    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites.descriptorCount = 1;
-    descriptorWrites.pImageInfo = &imageInfo;
-    descriptorWrites.pNext = nullptr;
-
-    vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);
+        vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);
+    }*/
 }

@@ -266,7 +266,9 @@ private:
 
     // video decode
     // TEMP
-    VkDescriptorSet videoFrameView;
+    std::vector<VkDescriptorSet> videoFrameViews;
+    VkImageView videoFrameView;
+    VkImageView prevVideoFrameView;
 
     // imgui
     void initImGui();
@@ -325,4 +327,5 @@ public:
     // buffers operations
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, void* pNext);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
 };

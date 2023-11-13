@@ -3,7 +3,6 @@
 #include <vector>
 #include <volk.h>
 #include "vk_engine.h"
-#include <chrono>
 
 class VulkanEngine;
 
@@ -17,55 +16,26 @@ typedef struct {
 	size_t size;
 } INPUT_BUFFER;
 
-enum FrameType {
-	IntraFrame = 0,			// full video frame
-	PredictiveFrame = 1,	// contain difference to otherframe
-};
-
-struct FrameInfo {
-	uint64_t offset = 0;
-	uint64_t size = 0;
-	float timestampSeconds = 0;
-	float durationSeconds = 0;
-	FrameType type = FrameType::IntraFrame;
-	uint32_t referencePriority = 0;
-	int poc = 0;
-	int gop = 0;
-	int displayOrder = 0;
+struct DecodeFrameResult {
+	VkImageView frameImageView;
+	VkFence decodeFence;
 };
 
 class VulkanVideo {
 private:
 	VulkanEngine* pDevice;
 
-	uint32_t height;
-	uint32_t width;
-	uint32_t bitRate;
-
 	// sequence parameter set
-	std::vector<uint8_t> spsData;
-	uint32_t spsCount = 0;
 	std::vector<StdVideoH264SequenceParameterSet> spsArrayH264;
 
 	// picture parameter set
-	std::vector<uint8_t> ppsData;
-	uint32_t ppsCount;
 	std::vector<StdVideoH264PictureParameterSet> ppsArrayH264;
-
-	std::vector<FrameInfo> frameInfos;
-	std::vector<uint8_t> frameSliceHeaderData;
-	uint32_t framesCount;
-	std::vector<size_t> frameDisplayOrder;
-
-	float averageFrameRate;
-	float durationSeconds;
 
 	// video stream buffer
 	VkBuffer videoBitStreamBuffer;
 	VkDeviceMemory videoBitStreamBufferMemory;
 
 	// frames used to generate p-frames, also known as decoded picture buffer (dpb) slots
-	uint32_t numDpbSlots = 0;
 	std::vector<uint8_t> referencePositions;	// positions of the reference frames (slots) inside the dpb
 	uint8_t nextDecodePosition = 0;
 	uint8_t currentDecodePosition = 0;
@@ -88,8 +58,6 @@ private:
 
 	int currentFrame = 0;
 
-	std::chrono::steady_clock::time_point lastDecodeTime = std::chrono::high_resolution_clock::now();
-
 	// decoder -> CHECKME: consider moving to vulkan device class
 	VkVideoSessionParametersKHR videoSessionParameters;
 	VkVideoSessionKHR videoSession = VK_NULL_HANDLE;
@@ -97,14 +65,15 @@ private:
 	// sync
 	VkFence decodeFence;
 
-	void loadVideo(std::string filePath);
-	void queryDecodeVideoCapabilities();
-	void loadVideoData();
-	void createVideoSession();
-	void createDpbTextures();
 
 
 public:
 	VulkanVideo(VulkanEngine* pDevice, std::string filePath);
-	VkImageView decodeFrame();
+	DecodeFrameResult* startNextFrameDecode();
+	
+	uint64_t queryDecodeVideoCapabilities();
+	void loadVideoTrack(VideoState* pVideoState);
+	void loadVideoData();
+	void createVideoSession();
+	void createDpbTextures();
 };

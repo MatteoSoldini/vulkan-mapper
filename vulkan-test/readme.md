@@ -21,7 +21,8 @@
 		- [ ] ycbcr sampler
 			- [maister's graphics adventures blog](https://themaister.net/blog/2019/12/01/yuv-sampling-in-vulkan-a-niche-and-complicated-feature-vk_khr_ycbcr_sampler_conversion/) 
 			- as is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
-			- [ ] sampled frame seems too bright
+			- [x] working sampler
+			- [ ] FIX: sampled frame seems too bright
 		- [x] decode a frame
 		- [x] video on plane
 		- [x] dpb
