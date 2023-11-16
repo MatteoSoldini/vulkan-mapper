@@ -65,8 +65,8 @@ public:
     
 private:
     // constants
-    const uint32_t WIDTH = 1280;
-    const uint32_t HEIGHT = 720;
+    const uint32_t WIDTH = 1920;
+    const uint32_t HEIGHT = 1080;
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -266,7 +266,7 @@ private:
 
     // video decode
     // TEMP
-    std::vector<VkDescriptorSet> videoFrameViews;
+    std::vector<VkDescriptorSet> videoFrameDescriptorSet;
     VkImageView videoFrameView;
     VkImageView prevVideoFrameView;
 

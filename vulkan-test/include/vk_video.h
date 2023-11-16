@@ -3,6 +3,7 @@
 #include <vector>
 #include <volk.h>
 #include "vk_engine.h"
+#include "media_manager.h"
 
 class VulkanEngine;
 
@@ -10,6 +11,8 @@ class VulkanEngine;
 #define FRAME_FORMAT VK_FORMAT_G8_B8R8_2PLANE_420_UNORM		//YUV420
 
 struct Texture;
+
+struct VideoState;
 
 typedef struct {
 	uint8_t* buffer;
@@ -35,11 +38,6 @@ private:
 	VkBuffer videoBitStreamBuffer;
 	VkDeviceMemory videoBitStreamBufferMemory;
 
-	// frames used to generate p-frames, also known as decoded picture buffer (dpb) slots
-	std::vector<uint8_t> referencePositions;	// positions of the reference frames (slots) inside the dpb
-	uint8_t nextDecodePosition = 0;
-	uint8_t currentDecodePosition = 0;
-
 	// the backing store of DPB slots
 	VkImage dpbImage;	// multi layer
 	VkDeviceMemory dpbImageMemory;
@@ -56,8 +54,6 @@ private:
 	VkVideoCapabilitiesKHR videoCapabilities;
 	uint64_t bitStreamAlignment;
 
-	int currentFrame = 0;
-
 	// decoder -> CHECKME: consider moving to vulkan device class
 	VkVideoSessionParametersKHR videoSessionParameters;
 	VkVideoSessionKHR videoSession = VK_NULL_HANDLE;
@@ -65,15 +61,16 @@ private:
 	// sync
 	VkFence decodeFence;
 
+	void loadVideoData(VideoState* pVideoState);
+	void createVideoSession(VideoState* pVideoState);
+	void createDpbTextures(VideoState* pVideoState);
 
 
 public:
-	VulkanVideo(VulkanEngine* pDevice, std::string filePath);
-	DecodeFrameResult* startNextFrameDecode();
+	VulkanVideo(VulkanEngine* pDevice);
+	DecodeFrameResult* decodeFrame(VideoState* pVideoState);
 	
 	uint64_t queryDecodeVideoCapabilities();
-	void loadVideoTrack(VideoState* pVideoState);
-	void loadVideoData();
-	void createVideoSession();
-	void createDpbTextures();
+	void loadVideoStream(uint8_t* dataStream, size_t dataStreamSize);
+	void setupDecoder(VideoState* pVideoState);
 };

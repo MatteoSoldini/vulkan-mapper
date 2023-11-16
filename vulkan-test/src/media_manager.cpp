@@ -12,6 +12,11 @@
 #include <algorithm>
 
 
+void MediaManager::startNextFrameDecode() {
+    //std::cout << "decoding frames at: " << 1.0f / timePassed << std::endl;
+    //pVideoState->lastDecodeTime = std::chrono::high_resolution_clock::now();
+}
+
 MediaManager::MediaManager(VulkanEngine* pEngine) {
     MediaManager::pEngine = pEngine;
 }
@@ -55,27 +60,61 @@ void MediaManager::loadImage(std::string filePath) {
     medias.push_back(newImage);
 }
 
-void MediaManager::nextFrame() {
-    //if (video != nullptr) pEngine->loadVideoFrame(video->startNextFrameDecode());
-}
-
 void MediaManager::decodeFrames() {
     // check for any video that need decoding
     for (auto media : medias) {
-        if (media.type == MediaType::Video) {   // a single video in the list (for now)
-            if (decodingFrame != nullptr) {    // previously waited for a frame to be decoded
-                if (vkGetFenceStatus(pEngine->getDevice(), decodingFrame->decodeFence) == VK_SUCCESS) {  // the frame has been decoded
-                    vkResetFences(pEngine->getDevice(), 1, &(decodingFrame->decodeFence));
-                    pEngine->loadVideoFrame(decodingFrame->frameImageView);  // emit
-                    decodingFrame = nullptr;
+        if (media.type == MediaType::Video) {   // VIDEO
+            VideoState* pVideoState = dynamic_cast<VideoState*>(media.pState);
+            if (pVideoState == nullptr) throw std::runtime_error("wrong media state");
+
+            if (pVideoState->decodingResult != nullptr) {     // if waiting for a frame to be decoded
+                std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+                float timePassed = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - pVideoState->startTime).count();
+                
+                if (
+                    vkGetFenceStatus(pEngine->getDevice(), pVideoState->decodingResult->decodeFence) == VK_SUCCESS &&
+                    timePassed >= pVideoState->frameInfos[pVideoState->currentFrame].timestampSeconds
+                    ) {  // if the frame has been decoded and its time to emit
+                    vkResetFences(pEngine->getDevice(), 1, &(pVideoState->decodingResult->decodeFence));
+                    pEngine->loadVideoFrame(pVideoState->decodingResult->frameImageView);  // emit frame
+
+                    delete pVideoState->decodingResult;
+                    pVideoState->decodingResult = nullptr;
                 }
                 else break;    // frame still decoding, skip
             }
-            // decode next frame
-            DecodeFrameResult* result = pVkVideo->startNextFrameDecode();
-            if (result == nullptr) break;
-            
-            decodingFrame = result;
+            else {  // decode next frame
+                FrameInfo currentFrameInfo = pVideoState->frameInfos[pVideoState->currentFrame];
+
+                // reset dpb on intra frame
+                if (currentFrameInfo.type == FrameType::IntraFrame) {
+                    //std::cout << "intra frame" << std::endl;
+                    pVideoState->referencesPositions.clear();
+                    pVideoState->currentDecodePosition = 0;
+                    pVideoState->nextDecodePosition = 0;
+                }
+
+                // update dpb position
+                pVideoState->currentDecodePosition = pVideoState->nextDecodePosition;
+
+                // vk decode
+                pVideoState->decodingResult = pVideoState->pVkDecoder->decodeFrame(pVideoState);
+
+                // dpb management
+                if (currentFrameInfo.referencePriority > 0) {   // if frame is used as reference
+                    if (pVideoState->referencesPositions.size() < 1) {
+                        pVideoState->referencesPositions.resize(1);
+                        //referenceSlotPositions.resize(referenceSlotPositions.size() + 1);
+                    }
+                    pVideoState->referencesPositions[0] = pVideoState->currentDecodePosition;
+                    pVideoState->nextDecodePosition = ++(pVideoState->nextDecodePosition) % pVideoState->numDpbSlots;
+                    // ignoring wickedengine's next_slot
+                }
+
+                // advance frame
+                pVideoState->currentFrame = ++(pVideoState->currentFrame) % pVideoState->framesCount;
+                if (pVideoState->currentFrame == 0) pVideoState->startTime = std::chrono::high_resolution_clock::now();
+            }
         }
     }
 }
@@ -105,20 +144,18 @@ void MediaManager::loadVideo(std::string filePath) {
     // add video to media
     m_id id = newId();
 
-    pVkVideo = new VulkanVideo(pEngine, filePath);
+    Media media{};
+    media.id = id;
+    media.type = MediaType::Video;
+    media.filePath = filePath;
+    media.pState = new VideoState;
+    medias.push_back(media);
 
-    VideoState videoState = {};
-
-    Media newMedia{};
-    newMedia.id = id;
-    newMedia.type = MediaType::Video;
-    newMedia.filePath = filePath;
-    newMedia.pState = &videoState;
-
-    medias.push_back(newMedia);
-
+    VideoState& videoState = *(media.pState);
+    videoState.pVkDecoder = new VulkanVideo(pEngine);
+    
     // query video capabilities
-    uint64_t bitStreamAlignment = pVkVideo->queryDecodeVideoCapabilities();
+    uint64_t bitStreamAlignment = videoState.pVkDecoder->queryDecodeVideoCapabilities();
 
     // load data
     auto data = readFile(filePath);
@@ -204,7 +241,7 @@ void MediaManager::loadVideo(std::string filePath) {
 
         // get samples (frames)
         videoState.framesCount = track.sample_count;
-        videoState.frameInfos.reserve(videoState.framesCount);
+        videoState.frameInfos.resize(videoState.framesCount);
         videoState.frameSliceHeaderData.reserve(videoState.framesCount * sizeof(h264::SliceHeader));
 
         const h264::PPS* ppsArray = (const h264::PPS*)videoState.ppsData.data();
@@ -226,7 +263,7 @@ void MediaManager::loadVideo(std::string filePath) {
             MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, ntrack, i, &frameBytes, &timestamp, &duration);
             trackDuration += duration;
 
-            FrameInfo info = {};
+            FrameInfo& info = videoState.frameInfos[i];
             info.offset = videoState.bitStreamSize;
 
             const uint8_t* srcBuffer = inputBuf + ofs;
@@ -299,9 +336,6 @@ void MediaManager::loadVideo(std::string filePath) {
             info.durationSeconds = float(double(duration) * timescaleRcp);
 
             std::cout << info.timestampSeconds << "\t" << info.type << "\t" << info.size << std::endl;
-
-            // push to array
-            videoState.frameInfos.push_back(info);
         }
 
         // display order
@@ -324,27 +358,41 @@ void MediaManager::loadVideo(std::string filePath) {
         videoState.averageFrameRate = float(double(track.timescale) / double(trackDuration) * track.sample_count);
         videoState.durationSeconds = float(double(trackDuration) * timescaleRcp);
 
-        pVkVideo->loadVideoTrack(&videoState);
-        
+        // assemble stream data
+        std::vector<uint8_t> streamData;
+        streamData.resize(videoState.bitStreamSize);
+        for (uint32_t i = 0; i < videoState.framesCount; i++) {
+            unsigned frameBytes, timestamp, duration;
+            MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, ntrack, i, &frameBytes, &timestamp, &duration);
+            uint8_t* dstBuffer = (uint8_t*)streamData.data() + videoState.frameInfos[i].offset;
+            const uint8_t* srcBuffer = inputBuf + ofs;
+            while (frameBytes > 0) {
+                uint32_t size = ((uint32_t)srcBuffer[0] << 24) | ((uint32_t)srcBuffer[1] << 16) | ((uint32_t)srcBuffer[2] << 8) | srcBuffer[3];
+                size += 4;
+                assert(frameBytes >= size);
 
-        VkVideoProfileListInfoKHR profileList = {};
-        profileList.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
-        profileList.profileCount = 1;
-        profileList.pProfiles = &videoProfile;
+                h264::Bitstream bs = {};
+                bs.init(&srcBuffer[4], sizeof(uint8_t));
+                h264::NALHeader nal = {};
+                h264::read_nal_header(&nal, &bs);
 
-        pDevice->createBuffer(
-            bitStreamSize,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            videoBitStreamBuffer,
-            videoBitStreamBufferMemory,
-            &profileList
-        );
+                if (
+                    nal.type != h264::NAL_UNIT_TYPE_CODED_SLICE_IDR &&
+                    nal.type != h264::NAL_UNIT_TYPE_CODED_SLICE_NON_IDR
+                    ) {
+                    frameBytes -= size;
+                    srcBuffer += size;
+                    continue;
+                }
 
-        pDevice->copyBuffer(stagingBuffer, videoBitStreamBuffer, bufferSize);
+                std::memcpy(dstBuffer, h264::nal_start_code, sizeof(h264::nal_start_code));
+                std::memcpy(dstBuffer + sizeof(h264::nal_start_code), srcBuffer + 4, size - 4);
+                break;
+            }
+        }
 
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
+        videoState.pVkDecoder->loadVideoStream(streamData.data(), streamData.size());
+        videoState.pVkDecoder->setupDecoder(&videoState);
     }
 
     MP4D_close(&mp4);

@@ -36,6 +36,14 @@ void UI::drawMediaManager() {
         pSelectedPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
     }
 
+    ImGui::BeginChild("media_manager");
+    if (ImGui::Button("Add", ImVec2{ 80, 80 })) {
+        std::string image_path = openFileDialog();
+        if (!image_path.empty()) {
+            pMediaManager->loadImage(image_path);
+        }
+    }
+
     for (auto media : medias) {
         bool selected = false;
 
@@ -45,19 +53,20 @@ void UI::drawMediaManager() {
             }
         }
 
-        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.5f, 0.5f));
+        ImGui::SameLine();
+        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ 80, 80  })) {
             if (pSelectedPlane != nullptr) {
                 pSelectedPlane->setMediaId(media.id);
             }
         }
+        ImGui::PopStyleVar();
     }
-    
-    if (ImGui::Button("Add", ImVec2{ ImGui::GetContentRegionAvail().x , 40 })) {
-        std::string image_path = openFileDialog();
-        if (!image_path.empty()) {
-            pMediaManager->loadImage(image_path);
-        }
-    }
+    ImGui::EndChild();
+}
+
+void UI::drawPropertiesManager() {
+    ImGui::Text("Properties manager");
 }
 
 void UI::viewport() {
@@ -106,30 +115,25 @@ void UI::drawUi() {
 
     ImGui::Begin("App", nullptr, flags);
 
-    ImGui::BeginTable("table1", 3);
-    // set first first column width
-    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+    ImGui::BeginChild("upper", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing()/2 + 80)));
+    {
+        ImGui::BeginChild("planes", ImVec2(300, 0));
+        planesMenu();
+        ImGui::EndChild();
 
-    ImGui::TableNextRow();
+        ImGui::SameLine();
+        ImGui::BeginChild("viewport", ImVec2(-300, 0));
+        viewport();
+        ImGui::EndChild();
 
-    // first column - planes menu
-    ImGui::TableSetColumnIndex(0);
-    planesMenu();
-
-    // second column - viewport
-    ImGui::TableSetColumnIndex(1);
-    if (ImGui::Button("next frame")) {
-        pEngine->getMediaManager()->nextFrame();
+        ImGui::SameLine();
+        ImGui::BeginChild("properties", ImVec2(300, 0));
+        drawPropertiesManager();
+        ImGui::EndChild();
     }
-    viewport();
+    ImGui::EndChild();
 
-    // third column - media manager
-    ImGui::TableSetColumnIndex(2);
     drawMediaManager();
-
-    ImGui::EndTable();
 
     ImGui::End();
 

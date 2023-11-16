@@ -17,26 +17,25 @@ typedef size_t ssize_t;
 
 #include "../include/vk_utils.h"
 
-void VulkanVideo::createVideoSession() {
+void VulkanVideo::createVideoSession(VideoState* pVideoState) {
     // create fence
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     vkCreateFence(pDevice->getDevice(), &fenceInfo, nullptr, &decodeFence);
 
     // create video session
     VkVideoSessionCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
     info.queueFamilyIndex = pDevice->getVideoQueueFamilyIndex();
-    info.maxActiveReferencePictures = numDpbSlots; //numReferenceFrames;
-    info.maxDpbSlots = numDpbSlots;
-    info.maxCodedExtent.width = std::min(width, videoCapabilities.maxCodedExtent.width);
-    info.maxCodedExtent.height = std::min(height, videoCapabilities.maxCodedExtent.height);
+    info.maxActiveReferencePictures = pVideoState->numDpbSlots; //numReferenceFrames;
+    info.maxDpbSlots = pVideoState->numDpbSlots;
+    info.maxCodedExtent.width = std::min(pVideoState->width, videoCapabilities.maxCodedExtent.width);
+    info.maxCodedExtent.height = std::min(pVideoState->height, videoCapabilities.maxCodedExtent.height);
     info.pictureFormat = FRAME_FORMAT;
     info.referencePictureFormat = info.pictureFormat;
     info.pVideoProfile = &videoProfile;
     info.pStdHeaderVersion = &videoCapabilities.stdHeaderVersion;
-
 
     if (vkCreateVideoSessionKHR(pDevice->getDevice(), &info, nullptr, &videoSession) != VK_SUCCESS) {
         throw std::runtime_error("failed to create video session");
@@ -91,15 +90,15 @@ void VulkanVideo::createVideoSession() {
     // create session parameters
     VkVideoDecodeH264SessionParametersAddInfoKHR sessionParametersAddInfoH264 = {};
     sessionParametersAddInfoH264.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_ADD_INFO_KHR;
-    sessionParametersAddInfoH264.stdPPSCount = ppsCount;
+    sessionParametersAddInfoH264.stdPPSCount = pVideoState->ppsCount;
     sessionParametersAddInfoH264.pStdPPSs = ppsArrayH264.data();
-    sessionParametersAddInfoH264.stdSPSCount = spsCount;
+    sessionParametersAddInfoH264.stdSPSCount = pVideoState->spsCount;
     sessionParametersAddInfoH264.pStdSPSs = spsArrayH264.data();
     
     VkVideoDecodeH264SessionParametersCreateInfoKHR sessionParametersInfoH264 = {};
     sessionParametersInfoH264.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_SESSION_PARAMETERS_CREATE_INFO_KHR;
-    sessionParametersInfoH264.maxStdPPSCount = ppsCount;
-    sessionParametersInfoH264.maxStdSPSCount = spsCount;
+    sessionParametersInfoH264.maxStdPPSCount = pVideoState->ppsCount;
+    sessionParametersInfoH264.maxStdSPSCount = pVideoState->spsCount;
     sessionParametersInfoH264.pParametersAddInfo = &sessionParametersAddInfoH264;
 
     VkVideoSessionParametersCreateInfoKHR sessionParametersInfo = {};
@@ -113,7 +112,7 @@ void VulkanVideo::createVideoSession() {
     }
 }
 
-void VulkanVideo::createDpbTextures() {
+void VulkanVideo::createDpbTextures(VideoState* pVideoState) {
     // create image
     VkVideoProfileListInfoKHR profileListInfo = {};
     profileListInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
@@ -128,9 +127,9 @@ void VulkanVideo::createDpbTextures() {
 
 
     pDevice->createImage(
-        width,
-        height,
-        numDpbSlots,
+        pVideoState->width,
+        pVideoState->height,
+        pVideoState->numDpbSlots,
         FRAME_FORMAT,
         VK_IMAGE_TILING_OPTIMAL,
         usageFlags,
@@ -140,7 +139,7 @@ void VulkanVideo::createDpbTextures() {
         &profileListInfo
     );
 
-    pDevice->transitionImageLayout(dpbImage, FRAME_FORMAT, numDpbSlots, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    pDevice->transitionImageLayout(dpbImage, FRAME_FORMAT, pVideoState->numDpbSlots, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // dpb image view
     VkSamplerYcbcrConversionInfo conversionInfo = {};
@@ -160,7 +159,7 @@ void VulkanVideo::createDpbTextures() {
     viewInfo.subresourceRange.baseMipLevel = 0;             // the first mipmap level accessible to the view
     viewInfo.subresourceRange.levelCount = 1;               // the number of mipmap levels (starting from baseMipLevel) accessible to the view
     viewInfo.subresourceRange.baseArrayLayer = 0;           // the first array layer accessible to the view
-    viewInfo.subresourceRange.layerCount = numDpbSlots;     // the number of array layers (starting from baseArrayLayer) accessible to the view
+    viewInfo.subresourceRange.layerCount = pVideoState->numDpbSlots;     // the number of array layers (starting from baseArrayLayer) accessible to the view
     viewInfo.pNext = &conversionInfo;
 
     if (vkCreateImageView(pDevice->getDevice(), &viewInfo, nullptr, &dpbImageView) != VK_SUCCESS) {
@@ -168,8 +167,8 @@ void VulkanVideo::createDpbTextures() {
     }
 
     // decoded image view
-    decodedImageViews.resize(numDpbSlots);    // resize image view
-    for (int i = 0; i < numDpbSlots; i++) {
+    decodedImageViews.resize(pVideoState->numDpbSlots);    // resize image view
+    for (int i = 0; i < pVideoState->numDpbSlots; i++) {
         VkSamplerYcbcrConversionInfo conversionInfo = {};
         conversionInfo.conversion = pDevice->getYcbcrSamplerConversion();
         conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
@@ -196,53 +195,32 @@ void VulkanVideo::createDpbTextures() {
     }
 }
 
-DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
-    std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
-
-    float frameTime = 1.0f / averageFrameRate;
-    float timePassed = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastDecodeTime).count();
-
-    if (timePassed < frameTime) return nullptr;
-
-    std::cout << "decoding frames at: " << 1.0f / timePassed << std::endl;
-    lastDecodeTime = std::chrono::high_resolution_clock::now();
-
-    const FrameInfo currentFrameInfo = frameInfos[currentFrame];
-    
-    // reset dpb on intra frame
-    if (currentFrameInfo.type == FrameType::IntraFrame) {
-        //std::cout << "intra frame" << std::endl;
-        referencePositions.clear();
-        currentDecodePosition = 0;
-        nextDecodePosition = 0;
-    }
-
-    // update dpb position
-    currentDecodePosition = nextDecodePosition;
+DecodeFrameResult* VulkanVideo::decodeFrame(VideoState* pVideoState) {
+    const FrameInfo currentFrameInfo = pVideoState->frameInfos[pVideoState->currentFrame];
 
     // TODO: ensure that referenced dpb slots are in SRC state
-    const h264::SliceHeader* frameSliceHeader = (const h264::SliceHeader*)frameSliceHeaderData.data() + currentFrame;
-    const h264::PPS* pps = (const h264::PPS*)ppsData.data() + frameSliceHeader->pic_parameter_set_id;
-    const h264::SPS* sps = (const h264::SPS*)spsData.data() + pps->seq_parameter_set_id;
+    const h264::SliceHeader* frameSliceHeader = (const h264::SliceHeader*)pVideoState->frameSliceHeaderData.data() + pVideoState->currentFrame;
+    const h264::PPS* pps = (const h264::PPS*)pVideoState->ppsData.data() + frameSliceHeader->pic_parameter_set_id;
+    const h264::SPS* sps = (const h264::SPS*)pVideoState->spsData.data() + pps->seq_parameter_set_id;
 
     VkCommandBuffer commandBuffer = pDevice->getVideoCommandBuffer();
 
     // (reference) slots info
     std::vector<VkVideoReferenceSlotInfoKHR> referenceSlotInfos;
-    int refSlotPositionsCount = referencePositions.size();
+    int refSlotPositionsCount = pVideoState->referencesPositions.size();
     referenceSlotInfos.resize(refSlotPositionsCount + 1);
     
     // set reference slots
     for (size_t i = 0; i < refSlotPositionsCount; i++) {
-        uint32_t refSlotPosition = referencePositions[i];
-        assert(refSlotPosition != currentDecodePosition);  // decode slot should not be overwritten by a reference frame
+        uint32_t refSlotPosition = pVideoState->referencesPositions[i];
+        assert(refSlotPosition != pVideoState->currentDecodePosition);  // decode slot should not be overwritten by a reference frame
 
         VkVideoPictureResourceInfoKHR picRefSlotInfo = {};
         picRefSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
         picRefSlotInfo.codedOffset.x = 0;
         picRefSlotInfo.codedOffset.y = 0;
-        picRefSlotInfo.codedExtent.width = width;
-        picRefSlotInfo.codedExtent.height = height;
+        picRefSlotInfo.codedExtent.width = pVideoState->width;
+        picRefSlotInfo.codedExtent.height = pVideoState->height;
         picRefSlotInfo.baseArrayLayer = refSlotPosition; // i
         picRefSlotInfo.imageViewBinding = dpbImageView;
 
@@ -274,9 +252,9 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
     picRefSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
     picRefSlotInfo.codedOffset.x = 0;
     picRefSlotInfo.codedOffset.y = 0;
-    picRefSlotInfo.codedExtent.width = width;
-    picRefSlotInfo.codedExtent.height = height;
-    picRefSlotInfo.baseArrayLayer = currentDecodePosition; // i
+    picRefSlotInfo.codedExtent.width = pVideoState->width;
+    picRefSlotInfo.codedExtent.height = pVideoState->height;
+    picRefSlotInfo.baseArrayLayer = pVideoState->currentDecodePosition; // i
     picRefSlotInfo.imageViewBinding = dpbImageView;
 
     StdVideoDecodeH264ReferenceInfo h264RefInfo = {};
@@ -295,7 +273,7 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
     VkVideoReferenceSlotInfoKHR dstSlotInfo = {};
     dstSlotInfo.sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
     dstSlotInfo.pPictureResource = &picRefSlotInfo;
-    dstSlotInfo.slotIndex = currentDecodePosition;
+    dstSlotInfo.slotIndex = pVideoState->currentDecodePosition;
     dstSlotInfo.pNext = &h264SlotInfo;
 
     referenceSlotInfos[refSlotPositionsCount] = dstSlotInfo;
@@ -340,13 +318,13 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
     videoBeginInfo.sType = VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR;
     videoBeginInfo.videoSession = videoSession;
     videoBeginInfo.videoSessionParameters = videoSessionParameters;
-    videoBeginInfo.referenceSlotCount = referencePositions.size() + 1; // add in the current reconstructed DPB image
+    videoBeginInfo.referenceSlotCount = refSlotPositionsCount + 1; // add in the current reconstructed DPB image
     videoBeginInfo.pReferenceSlots = videoBeginInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos.data();
     
     vkCmdBeginVideoCodingKHR(commandBuffer, &videoBeginInfo);
 
     // reset decode on first frame
-    if (currentFrame == 0) {
+    if (pVideoState->currentFrame == 0) {
         VkVideoCodingControlInfoKHR controlInfo = {};
         controlInfo.sType = VK_STRUCTURE_TYPE_VIDEO_CODING_CONTROL_INFO_KHR;
         controlInfo.flags = VK_VIDEO_CODING_CONTROL_RESET_BIT_KHR;
@@ -360,7 +338,7 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
     decodeInfo.srcBufferOffset = (VkDeviceSize)currentFrameInfo.offset;
     decodeInfo.srcBufferRange = (VkDeviceSize)((currentFrameInfo.size + bitStreamAlignment - 1) / bitStreamAlignment) * bitStreamAlignment;
     decodeInfo.dstPictureResource = *dstSlotInfo.pPictureResource;
-    decodeInfo.referenceSlotCount = referencePositions.size();
+    decodeInfo.referenceSlotCount = refSlotPositionsCount;
     decodeInfo.pReferenceSlots = decodeInfo.referenceSlotCount == 0 ? nullptr : referenceSlotInfos.data();
     decodeInfo.pSetupReferenceSlot = &dstSlotInfo;
     decodeInfo.pNext = &pictureInfoH264;
@@ -377,7 +355,7 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
         throw std::runtime_error("failed to end recording command buffer");
     }
     
-    // submit command buffer -> rethink decode logic in future
+    // submit command buffer
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
@@ -385,38 +363,11 @@ DecodeFrameResult* VulkanVideo::startNextFrameDecode() {
 
     vkQueueSubmit(pDevice->getVideoQueue(), 1, &submitInfo, decodeFence);
 
-    // dpb management
-    if (currentFrameInfo.referencePriority > 0) {   // if frame is used as reference
-        if (referencePositions.size() < 1) {
-            referencePositions.resize(1);
-            //referenceSlotPositions.resize(referenceSlotPositions.size() + 1);
-        }
-        referencePositions[0] = currentDecodePosition;
-        nextDecodePosition = ++nextDecodePosition % numDpbSlots;
-        // ignoring wickedengine's next_slot
-    }
-
-    // debug
-    //std::cout << "frame: " << currentFrame << "\t" << "current: " << (int)currentDecodePosition << std::endl;
-
-    // advance frame
-    currentFrame = ++currentFrame % framesCount;
-
-    
-    // TEMP: wait for previous frame
-    //vkWaitForFences(pDevice->getDevice(), 1, &decodeFence, VK_TRUE, UINT64_MAX);
-    //vkResetFences(pDevice->getDevice(), 1, &decodeFence);
-
-    // return new DecodeFrameResult{ decodedImageViews[currentDecodePosition], decodeFence };
+    return new DecodeFrameResult{ decodedImageViews[pVideoState->currentDecodePosition], decodeFence };
 }
 
-VulkanVideo::VulkanVideo(VulkanEngine* pDevice, std::string filePath) {
+VulkanVideo::VulkanVideo(VulkanEngine* pDevice) {
     VulkanVideo::pDevice = pDevice;
-
-    queryDecodeVideoCapabilities();
-    loadVideoData();
-    createVideoSession();
-    createDpbTextures();
 }
 
 
@@ -455,9 +406,11 @@ uint64_t VulkanVideo::queryDecodeVideoCapabilities() {
     return bitStreamAlignment;
 }
 
-void VulkanVideo::loadVideoTrack(VideoState* pVideoState) {
+void VulkanVideo::loadVideoStream(uint8_t* dataStream, size_t dataStreamSize) {
+    // FIX: redundant info: dataStreamSize & bufferSize
+    
     // copy video track to gpu
-    VkDeviceSize bufferSize = pVideoState->bitStreamSize;
+    VkDeviceSize bufferSize = dataStreamSize;
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -465,49 +418,47 @@ void VulkanVideo::loadVideoTrack(VideoState* pVideoState) {
 
     VkDevice device = pDevice->getDevice();
 
+    // copy stream data
     void* streamData;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &streamData);
-
-    for (uint32_t i = 0; i < pVideoState->framesCount; i++) {
-        unsigned frameBytes, timestamp, duration;
-        MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, ntrack, i, &frameBytes, &timestamp, &duration);
-        uint8_t* dstBuffer = (uint8_t*)streamData + pVideoState->frameInfos[i].offset;
-        const uint8_t* srcBuffer = inputBuf + ofs;
-        while (frameBytes > 0) {
-            uint32_t size = ((uint32_t)srcBuffer[0] << 24) | ((uint32_t)srcBuffer[1] << 16) | ((uint32_t)srcBuffer[2] << 8) | srcBuffer[3];
-            size += 4;
-            assert(frameBytes >= size);
-
-            h264::Bitstream bs = {};
-            bs.init(&srcBuffer[4], sizeof(uint8_t));
-            h264::NALHeader nal = {};
-            h264::read_nal_header(&nal, &bs);
-
-            if (
-                nal.type != h264::NAL_UNIT_TYPE_CODED_SLICE_IDR &&
-                nal.type != h264::NAL_UNIT_TYPE_CODED_SLICE_NON_IDR
-                ) {
-                frameBytes -= size;
-                srcBuffer += size;
-                continue;
-            }
-
-            std::memcpy(dstBuffer, h264::nal_start_code, sizeof(h264::nal_start_code));
-            std::memcpy(dstBuffer + sizeof(h264::nal_start_code), srcBuffer + 4, size - 4);
-            break;
-        }
-    }
+    
+    std::memcpy(streamData, dataStream, dataStreamSize);
 
     vkUnmapMemory(device, stagingBufferMemory);
+
+    VkVideoProfileListInfoKHR profileList = {};
+    profileList.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
+    profileList.profileCount = 1;
+    profileList.pProfiles = &videoProfile;
+
+    pDevice->createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        videoBitStreamBuffer,
+        videoBitStreamBufferMemory,
+        &profileList
+    );
+
+    pDevice->copyBuffer(stagingBuffer, videoBitStreamBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void VulkanVideo::loadVideoData() {
-    // load pps array
-    ppsArrayH264.resize(ppsCount);
-    std::vector<StdVideoH264ScalingLists> scalinglistArrayH264(ppsCount);
+void VulkanVideo::setupDecoder(VideoState* pVideoState) {
+    loadVideoData(pVideoState);
+    createVideoSession(pVideoState);
+    createDpbTextures(pVideoState);
+}
 
-    for (int i = 0; i < ppsCount; i++) {
-        const h264::PPS* pps = (const h264::PPS*)ppsData.data() + i;
+void VulkanVideo::loadVideoData(VideoState* pVideoState) {
+    // load pps array
+    ppsArrayH264.resize(pVideoState->ppsCount);
+    std::vector<StdVideoH264ScalingLists> scalinglistArrayH264(pVideoState->ppsCount);
+
+    for (int i = 0; i < pVideoState->ppsCount; i++) {
+        const h264::PPS* pps = (const h264::PPS*)pVideoState->ppsData.data() + i;
         StdVideoH264PictureParameterSet& vkPps = ppsArrayH264[i];
         StdVideoH264ScalingLists& vkScalinglist = scalinglistArrayH264[i];
 
@@ -558,14 +509,14 @@ void VulkanVideo::loadVideoData() {
     }
 
     // load sps array
-    spsArrayH264.resize(spsCount);
-    std::vector<StdVideoH264SequenceParameterSetVui> vuiArrayH264(spsCount);
-    std::vector<StdVideoH264HrdParameters> hrdArrayH264(spsCount);
+    spsArrayH264.resize(pVideoState->spsCount);
+    std::vector<StdVideoH264SequenceParameterSetVui> vuiArrayH264(pVideoState->spsCount);
+    std::vector<StdVideoH264HrdParameters> hrdArrayH264(pVideoState->spsCount);
     
     uint32_t numReferenceFrames = 0;
 
-    for (uint32_t i = 0; i < spsCount; ++i) {
-        const h264::SPS* sps = (const h264::SPS*)spsData.data() + i;
+    for (uint32_t i = 0; i < pVideoState->spsCount; ++i) {
+        const h264::SPS* sps = (const h264::SPS*)pVideoState->spsData.data() + i;
         StdVideoH264SequenceParameterSet& vkSps = spsArrayH264[i];
 
         vkSps.flags.constraint_set0_flag = sps->constraint_set0_flag;

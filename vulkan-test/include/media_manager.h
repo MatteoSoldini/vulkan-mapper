@@ -34,15 +34,11 @@ struct FrameInfo {
 };
 
 struct VideoState {
+	std::string filePath;
+
 	uint32_t width = 0;
 	uint32_t height = 0;
 	uint32_t bitRate = 0;
-
-	// decoded picture buffer
-	uint32_t numDpbSlots = 0;
-
-	std::chrono::steady_clock::time_point lastDecodeTime = std::chrono::high_resolution_clock::now();
-	
 	float averageFrameRate = 0.0f;
 	float durationSeconds = 0.0f;
 	uint64_t bitStreamSize = 0;
@@ -60,6 +56,18 @@ struct VideoState {
 	uint32_t framesCount = 0;
 
 	std::vector<FrameInfo> frameInfos;
+
+	VulkanVideo* pVkDecoder = nullptr;
+	// decoded picture buffer
+	uint32_t numDpbSlots = 0;
+
+	std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+	uint64_t currentFrame = 0;
+	std::vector<uint8_t> referencesPositions;
+	uint8_t currentDecodePosition = 0;
+	uint8_t nextDecodePosition = 0;
+	DecodeFrameResult* decodingResult = nullptr;
 };
 
 struct Media {
@@ -75,23 +83,18 @@ private:
 	std::vector<Media> medias;
 	m_id newId();
 
-	// frame still decoding, in the future multiple frames
-	DecodeFrameResult* decodingFrame = nullptr;
-
-	VulkanVideo* pVkVideo;
-
-	void loadVideo(std::string filePath);
+	void startNextFrameDecode();
 
 public:
 	MediaManager(VulkanEngine* pEngine);
 
+	// image
 	void loadImage(std::string filePath);
-	
+
 	// video
 	void loadVideo(std::string filePath);
-	// TEMP
-	void nextFrame();
-
+	
+	// video decode loop
 	void decodeFrames();
 
 	std::vector<Media> getMedias();
