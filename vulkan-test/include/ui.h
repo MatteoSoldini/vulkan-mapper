@@ -7,6 +7,8 @@ class Scene;
 
 class MediaManager;
 
+struct Video;
+
 class UI {
 private:
 	bool show_demo_window = false;
@@ -18,6 +20,7 @@ private:
 	void drawPropertiesManager();
 	void viewport();
 	std::string openFileDialog();
+	void drawVideoProperties(Video* pVideoState);
 
 public:
 	UI(VulkanEngine* pEngine);

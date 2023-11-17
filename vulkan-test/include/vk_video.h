@@ -4,6 +4,7 @@
 #include <volk.h>
 #include "vk_engine.h"
 #include "media_manager.h"
+#include "video.h"
 
 class VulkanEngine;
 
@@ -12,7 +13,7 @@ class VulkanEngine;
 
 struct Texture;
 
-struct VideoState;
+struct Video;
 
 typedef struct {
 	uint8_t* buffer;
@@ -61,16 +62,16 @@ private:
 	// sync
 	VkFence decodeFence;
 
-	void loadVideoData(VideoState* pVideoState);
-	void createVideoSession(VideoState* pVideoState);
-	void createDpbTextures(VideoState* pVideoState);
+	void loadVideoData(Video* pVideo);
+	void createVideoSession(Video* pVideo);
+	void createDpbTextures(Video* pVideo);
 
 
 public:
 	VulkanVideo(VulkanEngine* pDevice);
-	DecodeFrameResult* decodeFrame(VideoState* pVideoState);
+	DecodeFrameResult* decodeFrame(Video* pVideo);
 	
 	uint64_t queryDecodeVideoCapabilities();
 	void loadVideoStream(uint8_t* dataStream, size_t dataStreamSize);
-	void setupDecoder(VideoState* pVideoState);
+	void setupDecoder(Video* pVideo);
 };

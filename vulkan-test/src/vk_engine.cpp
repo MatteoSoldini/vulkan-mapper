@@ -1566,7 +1566,7 @@ void VulkanEngine::initVulkan() {
     }, this);
 
     // TEMP
-    pMediaManager->loadVideo("video_test.mp4");
+    pMediaManager->loadFile("video_test.mp4");
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {

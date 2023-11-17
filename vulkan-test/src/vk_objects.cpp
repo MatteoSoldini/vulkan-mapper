@@ -105,8 +105,8 @@ std::vector<uint16_t> Plane::getIndices() {
 std::string Plane::getPipelineName() {
     if (mediaId != -1) {
         Media* pMedia = pScene->getEngine()->getMediaManager()->getMediaById(mediaId);
-        if (pMedia->type == MediaType::Image) { return "texture"; }
-        else if (pMedia->type == MediaType::Video) { return "video_frame"; }
+        if (pMedia->type == MediaType::IMAGE) { return "texture"; }
+        else if (pMedia->type == MediaType::VIDEO) { return "video_frame"; }
         else return "color";
     }
     else return "color";

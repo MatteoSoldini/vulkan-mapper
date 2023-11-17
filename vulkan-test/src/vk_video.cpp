@@ -17,7 +17,7 @@ typedef size_t ssize_t;
 
 #include "../include/vk_utils.h"
 
-void VulkanVideo::createVideoSession(VideoState* pVideoState) {
+void VulkanVideo::createVideoSession(Video* pVideoState) {
     // create fence
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -112,7 +112,7 @@ void VulkanVideo::createVideoSession(VideoState* pVideoState) {
     }
 }
 
-void VulkanVideo::createDpbTextures(VideoState* pVideoState) {
+void VulkanVideo::createDpbTextures(Video* pVideoState) {
     // create image
     VkVideoProfileListInfoKHR profileListInfo = {};
     profileListInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR;
@@ -195,7 +195,7 @@ void VulkanVideo::createDpbTextures(VideoState* pVideoState) {
     }
 }
 
-DecodeFrameResult* VulkanVideo::decodeFrame(VideoState* pVideoState) {
+DecodeFrameResult* VulkanVideo::decodeFrame(Video* pVideoState) {
     const FrameInfo currentFrameInfo = pVideoState->frameInfos[pVideoState->currentFrame];
 
     // TODO: ensure that referenced dpb slots are in SRC state
@@ -446,13 +446,13 @@ void VulkanVideo::loadVideoStream(uint8_t* dataStream, size_t dataStreamSize) {
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
-void VulkanVideo::setupDecoder(VideoState* pVideoState) {
+void VulkanVideo::setupDecoder(Video* pVideoState) {
     loadVideoData(pVideoState);
     createVideoSession(pVideoState);
     createDpbTextures(pVideoState);
 }
 
-void VulkanVideo::loadVideoData(VideoState* pVideoState) {
+void VulkanVideo::loadVideoData(Video* pVideoState) {
     // load pps array
     ppsArrayH264.resize(pVideoState->ppsCount);
     std::vector<StdVideoH264ScalingLists> scalinglistArrayH264(pVideoState->ppsCount);

@@ -164,6 +164,7 @@
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\imgui\imgui_widgets.cpp" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_common.c" />
     <ClCompile Include="C:\Users\Soldo\Documents\Visual Studio 2019\Libraries\nativefiledialog-release_116\src\nfd_win.cpp" />
+    <ClCompile Include="src\video.cpp" />
     <ClCompile Include="src\vk_output.cpp" />
     <ClCompile Include="src\vk_video.cpp" />
     <ClCompile Include="src\media_manager.cpp" />
@@ -190,6 +191,7 @@
     <ClInclude Include="include\media_manager.h" />
     <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\ui.h" />
+    <ClInclude Include="include\video.h" />
     <ClInclude Include="include\vk_engine.h" />
     <ClInclude Include="include\vk_objects.h" />
     <ClInclude Include="include\vk_output.h" />

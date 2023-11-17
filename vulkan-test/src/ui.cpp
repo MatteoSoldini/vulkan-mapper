@@ -37,10 +37,11 @@ void UI::drawMediaManager() {
     }
 
     ImGui::BeginChild("media_manager");
-    if (ImGui::Button("Add", ImVec2{ 80, 80 })) {
-        std::string image_path = openFileDialog();
-        if (!image_path.empty()) {
-            pMediaManager->loadImage(image_path);
+    if (ImGui::Button("Add", ImVec2{ 100, 100 })) {
+        std::string filePath = openFileDialog();
+        if (!filePath.empty()) {
+
+            pMediaManager->loadFile(filePath);
         }
     }
 
@@ -53,20 +54,72 @@ void UI::drawMediaManager() {
             }
         }
 
-        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.5f, 0.5f));
         ImGui::SameLine();
-        if (ImGui::Selectable(media.filePath.substr(media.filePath.find_last_of("\\") + 1).c_str(), selected, 0, ImVec2{ 80, 80  })) {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::BeginChild((std::string("media_") + std::to_string(media.id)).c_str(), ImVec2(100, 100), true);
+        
+        std::string fullText = media.filePath.substr(media.filePath.find_last_of("\\") + 1);
+        std::string buttonText = "";
+        uint32_t letterCount = 0;
+
+        for (auto letter : fullText) {
+            buttonText.push_back(letter);
+            letterCount = ++letterCount % 10;
+            if (letterCount == 0) buttonText += '\n';
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.5f, 0.5f));
+        if (ImGui::Selectable(
+            buttonText.c_str(),
+            selected,
+            0,
+            ImVec2{ ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y }
+        )) {
             if (pSelectedPlane != nullptr) {
                 pSelectedPlane->setMediaId(media.id);
             }
         }
+        ImGui::PopStyleVar();
+        
+        ImGui::EndChild();
         ImGui::PopStyleVar();
     }
     ImGui::EndChild();
 }
 
 void UI::drawPropertiesManager() {
-    ImGui::Text("Properties manager");
+    ImGui::SeparatorText("Properties manager");
+
+    Scene* pScene = pEngine->getScene();
+    int selectedObjId = pScene->getSelectedObjectId();
+    Plane* pSelectedPlane = nullptr;
+    if (selectedObjId != -1) {
+        pSelectedPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
+    }
+
+    if (pSelectedPlane == nullptr) {
+        ImGui::Text("Select a media");
+    }
+    else {
+        m_id selectedMediaId = pSelectedPlane->getMediaId();
+        Media* pMedia = pEngine->getMediaManager()->getMediaById(selectedMediaId);
+
+        if (pMedia != nullptr) {
+            ImGui::Text("File name: %s", pMedia->filePath.c_str());
+            
+            switch (pMedia->type) {
+            case MediaType::VIDEO:
+                ImGui::Text("Type: Video");
+                drawVideoProperties(pMedia->pState);
+                break;
+            case MediaType::IMAGE:
+                ImGui::Text("Type: Image");
+                break;
+            default:
+                ImGui::Text("Type: Unknown");
+            }
+        }
+    }
 }
 
 void UI::viewport() {
@@ -81,7 +134,7 @@ void UI::viewport() {
 
 std::string UI::openFileDialog() {
     nfdchar_t* outPath = NULL;
-    nfdchar_t* filter_list = (nfdchar_t*)"png, jpg";
+    nfdchar_t* filter_list = (nfdchar_t*)"png, jpg, mp4";
     nfdresult_t result = NFD_OpenDialog(filter_list, NULL, &outPath);
     std::string path;
 
@@ -100,6 +153,31 @@ std::string UI::openFileDialog() {
     return path;
 }
 
+void UI::drawVideoProperties(Video* pVideoState) {
+    if (pVideoState == nullptr) return;
+
+    int currentFrame = (int)pVideoState->currentFrame;
+
+    if (pVideoState != nullptr) {
+        ImGui::SliderInt("frame",
+            &currentFrame,
+            0,
+            (int)pVideoState->framesCount
+        );
+    }
+
+    if (pVideoState->playing) {
+        if (ImGui::Button("pause")) {
+            pVideoState->pause();
+        }
+    }
+    else {
+        if (ImGui::Button("play")) {
+            pVideoState->play();
+        }
+    }
+}
+
 UI::UI(VulkanEngine* pEngine) {
     UI::pEngine = pEngine;
 }
@@ -115,21 +193,29 @@ void UI::drawUi() {
 
     ImGui::Begin("App", nullptr, flags);
 
-    ImGui::BeginChild("upper", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing()/2 + 80)));
+    ImGui::BeginChild("upper", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing()/2 + 100)));
     {
-        ImGui::BeginChild("planes", ImVec2(300, 0));
+        ImGui::BeginTable("upper_table", 3);
+        // set first first column width
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+
+        ImGui::TableNextRow();
+
+        // first column - planes menu
+        ImGui::TableSetColumnIndex(0);
         planesMenu();
-        ImGui::EndChild();
 
-        ImGui::SameLine();
-        ImGui::BeginChild("viewport", ImVec2(-300, 0));
+        // second column - viewport
+        ImGui::TableSetColumnIndex(1);
         viewport();
-        ImGui::EndChild();
 
-        ImGui::SameLine();
-        ImGui::BeginChild("properties", ImVec2(300, 0));
+        // third column - media manager
+        ImGui::TableSetColumnIndex(2);
         drawPropertiesManager();
-        ImGui::EndChild();
+
+        ImGui::EndTable();
     }
     ImGui::EndChild();
 
