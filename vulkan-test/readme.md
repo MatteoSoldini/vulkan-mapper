@@ -26,9 +26,9 @@
 		- [x] decode a frame
 		- [x] video on plane
 		- [x] dpb
-		- [ ] smooth video playing & synchronization
-			- [ ] rendering image view should be updated only after decode operation (validator error)
-			- [ ] FIX: every loop the image view gets updated since `decodeFrame` returns the current image view from the dpb every time
+		- [x] smooth video playing & synchronization
+			- [x] rendering image view should be updated only after decode operation (validator error)
+			- [ ] FIX: every loop, the image view gets updated since `decodeFrame` returns the current image view from the dpb every time
 		- [ ] multiple video
 
 # to do

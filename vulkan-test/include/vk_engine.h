@@ -85,7 +85,6 @@ private:
         // presentation
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         // video decode
-        
         VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
         VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
         VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,

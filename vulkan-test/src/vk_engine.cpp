@@ -218,7 +218,25 @@ int VulkanEngine::rateDeviceSuitability(VkPhysicalDevice device) {
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    if (!completeIndicies || !extensionsSupported || !deviceFeatures.geometryShader || !swapChainAdequate || !supportedFeatures.samplerAnisotropy || !supportedFeatures.wideLines)
+    // vulkan 1.1 features (ycbcr sampler)
+    VkPhysicalDeviceVulkan11Features supported11Features = {};
+    supported11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+
+    VkPhysicalDeviceFeatures2 supported2Features = {};
+    supported2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supported2Features.pNext = &supported11Features;
+    supported2Features.features = supportedFeatures;
+
+    vkGetPhysicalDeviceFeatures2(device, &supported2Features);
+
+    if (!completeIndicies ||
+        !extensionsSupported ||
+        !deviceFeatures.geometryShader ||
+        !swapChainAdequate ||
+        !supportedFeatures.samplerAnisotropy ||
+        !supportedFeatures.wideLines ||
+        !supported11Features.samplerYcbcrConversion
+        )
         return 0;
 
     return score;
@@ -308,6 +326,10 @@ void VulkanEngine::createLogicalDevice() {
     deviceFeatures.samplerAnisotropy = VK_TRUE;
     deviceFeatures.wideLines = VK_TRUE;
 
+    VkPhysicalDeviceVulkan11Features device11Features = {};
+    device11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    device11Features.samplerYcbcrConversion = VK_TRUE;
+
     // Creating logical device
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -323,6 +345,7 @@ void VulkanEngine::createLogicalDevice() {
     else {
         createInfo.enabledLayerCount = 0;
     }
+    createInfo.pNext = &device11Features;
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
@@ -1130,88 +1153,93 @@ void VulkanEngine::createTextureImage() {
 void VulkanEngine::createSamplers() {
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-    
+
     // texture sampler
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.anisotropyEnable = VK_TRUE;
+        samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
 
-    if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler!");
+        if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create texture sampler!");
+        }
     }
-
+    
     // ycbcr frame sampler
-    samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.anisotropyEnable = VK_FALSE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    {
+        VkSamplerCreateInfo samplerInfo = {};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 16.0f;
 
-    // sampler conversion
-    VkSamplerYcbcrConversionCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO;
-    createInfo.format = FRAME_FORMAT;
+        // sampler conversion
+        VkSamplerYcbcrConversionCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO;
+        createInfo.format = FRAME_FORMAT;
 
-    // Which 3x3 YUV to RGB matrix is used?
-    // 601 is generally used for SD content.
-    // 709 for HD content.
-    // 2020 for UHD content.
-    createInfo.ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709;
+        // Which 3x3 YUV to RGB matrix is used?
+        // 601 is generally used for SD content.
+        // 709 for HD content.
+        // 2020 for UHD content.
+        createInfo.ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709;
 
-    // TV (NARROW) or PC (FULL) range for YUV?
-    // Usually, JPEG uses full range and broadcast content is narrow.
-    // If using narrow, the YUV components need to be
-    // rescaled before it can be converted.
-    createInfo.ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
+        // TV (NARROW) or PC (FULL) range for YUV?
+        // Usually, JPEG uses full range and broadcast content is narrow.
+        // If using narrow, the YUV components need to be
+        // rescaled before it can be converted.
+        createInfo.ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
 
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-    createInfo.xChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
-    createInfo.yChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
+        createInfo.xChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
+        createInfo.yChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
 
-    createInfo.chromaFilter = VK_FILTER_LINEAR;
-    createInfo.pNext = nullptr;
+        createInfo.chromaFilter = VK_FILTER_LINEAR;
+        createInfo.forceExplicitReconstruction = false;
+        createInfo.pNext = nullptr;
 
-    vkCreateSamplerYcbcrConversion(device, &createInfo, nullptr, &ycbcrSamplerConversion);
+        vkCreateSamplerYcbcrConversion(device, &createInfo, nullptr, &ycbcrSamplerConversion);
 
-    VkSamplerYcbcrConversionInfo conversionInfo = {};
-    conversionInfo.conversion = ycbcrSamplerConversion;
-    conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
-    conversionInfo.pNext = nullptr;
+        VkSamplerYcbcrConversionInfo conversionInfo = {};
+        conversionInfo.conversion = ycbcrSamplerConversion;
+        conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
+        conversionInfo.pNext = nullptr;
 
-    samplerInfo.pNext = &conversionInfo;
+        samplerInfo.pNext = &conversionInfo;
 
-    if (vkCreateSampler(device, &samplerInfo, nullptr, &ycbcrFrameSampler) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler!");
+        if (vkCreateSampler(device, &samplerInfo, nullptr, &ycbcrFrameSampler) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create texture sampler!");
+        }
     }
 }
 

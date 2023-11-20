@@ -71,16 +71,16 @@ void Marker::onMove(float deltaX, float deltaY) {
 
 // Plane
 Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y) {
-    const glm::vec3 default_color = { 0.5f, 0.5f, 0.5f };
+    const glm::vec3 defaultColor = { 0.5f, 0.5f, 0.5f };
     
     Plane::width = width;
     Plane::height = height;
     
     Plane::vertices = {
-        {{ -width / 2 + pos_x, -height / 2 + pos_y, -1.0f }, default_color, {0.0f, 1.0f}},
-        {{ width / 2 + pos_x, -height / 2 + pos_y, -1.0f}, default_color, {1.0f, 1.0f}},
-        {{ width / 2 + pos_x, height / 2 + pos_y, -1.0f}, default_color, {1.0f, 0.0f}},
-        {{ -width / 2 + pos_x, height / 2 + pos_y, -1.0f}, default_color, {0.0f, 0.0f}}
+        {{ -width / 2 + pos_x, -height / 2 + pos_y, -1.0f }, defaultColor, {0.0f, 1.0f}},
+        {{ width / 2 + pos_x, -height / 2 + pos_y, -1.0f}, defaultColor, {1.0f, 1.0f}},
+        {{ width / 2 + pos_x, height / 2 + pos_y, -1.0f}, defaultColor, {1.0f, 0.0f}},
+        {{ -width / 2 + pos_x, height / 2 + pos_y, -1.0f}, defaultColor, {0.0f, 0.0f}}
     };
 
     Plane::pos_x = pos_x;
