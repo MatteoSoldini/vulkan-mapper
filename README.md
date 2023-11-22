@@ -1,3 +1,6 @@
-# vulkan test
+# VulkanMapper
+Trying to learn the low-level graphics api from scratch by building a Video Mapping application
 
-Vulkan personal exercise
+## Features
+1. Homography transform
+2. H264 gpu video decoding
