@@ -4,12 +4,12 @@
 
 #include <vector>
 #include <memory>
-#include "vk_objects.h"
-#include "vk_engine.h"
+#include "scene_objects.h"
+#include "vk_state.h"
 
 class Object;
 
-class VulkanEngine;
+class VulkanState;
 
 class Scene {
 private:
@@ -23,13 +23,13 @@ private:
 
 	std::vector<Object*> pObjects;
 
-	VulkanEngine* pEngine;
+	VulkanState* pEngine;
 
 public:
-	Scene(VulkanEngine* pEngine);
+	Scene(VulkanState* pEngine);
 
 	// TEMP
-	VulkanEngine* getEngine() { return pEngine; };
+	VulkanState* getEngine() { return pEngine; };
 
 	int getSelectedObjectId() { return selectedObjId; };
 	int getHoveringObjectId() { return hoveringObjId; };

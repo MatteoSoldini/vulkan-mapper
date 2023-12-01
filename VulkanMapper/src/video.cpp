@@ -14,9 +14,11 @@ static int read_callback(int64_t offset, void* buffer, size_t size, void* token)
     return to_copy != size;
 }
 
-Video::Video(VulkanEngine* pDevice, std::string filePath) {
+Video::Video(VulkanState* pDevice, std::string filePath) {
     Video::pDevice = pDevice;
     pVkDecoder = new VulkanVideo(pDevice);
+
+    vmVideoFrameStreamId = pDevice->createVideoFrameStream();
 
     // query video capabilities
     uint64_t bitStreamAlignment = pVkDecoder->queryDecodeVideoCapabilities();
@@ -271,15 +273,19 @@ void Video::decodeFrame() {
         float timePassed = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         if (
-            vkGetFenceStatus(pDevice->getDevice(), decodingResult->decodeFence) == VK_SUCCESS &&
-            timePassed >= frameInfos[currentFrame].timestampSeconds &&
-            playing
-            ) {  // if the frame has been decoded and its time to emit
+            vkGetFenceStatus(pDevice->getDevice(), decodingResult->decodeFence) == VK_SUCCESS &&    // finished decoding
+            (
+                (timePassed >= frameInfos[currentFrame].timestampSeconds && playing)                // time to emit (or)
+                || presentAFrame                                                                    // present a frame anyway
+                )
+            ) {
             vkResetFences(pDevice->getDevice(), 1, &(decodingResult->decodeFence));
-            pDevice->loadVideoFrame(decodingResult->frameImageView);  // emit frame
+            pDevice->loadVideoFrame(vmVideoFrameStreamId, decodingResult->frameImageView);  // emit frame
 
             delete decodingResult;
             decodingResult = nullptr;
+
+            if (presentAFrame) presentAFrame = false;
         }
         else {
             //std::cout << "time remaining for frame " << currentFrame << ": " << frameInfos[currentFrame].timestampSeconds - timePassed << std::endl;
@@ -331,4 +337,13 @@ void Video::play() {
     auto castedDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
     startTime = currentTime - castedDuration;
     //float timePassed = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+}
+
+void Video::firstFrame() {
+    currentFrame = 0;
+
+    std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+    startTime = currentTime;
+
+    presentAFrame = true;
 }

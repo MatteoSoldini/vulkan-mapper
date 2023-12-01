@@ -4,10 +4,10 @@
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 
-#include "include/vk_engine.h"
+#include "include/vk_state.h"
 
 int main() {
-  VulkanEngine engine;
+  VulkanState engine;
 
   try {
     engine.run();

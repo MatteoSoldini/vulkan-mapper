@@ -14,13 +14,17 @@
 
 #include <vector>
 #include "scene.h"
-#include "vk_engine.h"
+#include "vk_state.h"
 
 #endif
 
 struct Pipeline;
 
-struct Texture;
+struct VmTexture;
+
+struct Scene;
+
+class VulkanState;
 
 struct OutputSharedEngineState {
 	VkInstance instance;
@@ -32,7 +36,7 @@ struct OutputSharedEngineState {
 	VkPhysicalDevice physicalDevice;
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
-	std::map<uint8_t, Texture>* pTextures;
+	std::map<uint8_t, VmTexture>* pTextures;
 	VkDescriptorSetLayout uniformBufferLayout;
 	VkDescriptorSetLayout textureLayout;
 	Scene* pScene;
@@ -40,7 +44,7 @@ struct OutputSharedEngineState {
 
 class VulkanOutput {
 public:
-	VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanEngine* pDevice);
+	VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanState* pDevice);
 
 	void init() {
 		initWindow();
@@ -66,7 +70,7 @@ private:
 
 	OutputSharedEngineState sharedEngineState;
 
-	VulkanEngine* pDevice;
+	VulkanState* pDevice;
 
 	// surface
 	GLFWwindow* window;

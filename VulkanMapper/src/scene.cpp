@@ -1,5 +1,5 @@
 #include "../include/scene.h"
-#include "../include/vk_objects.h"
+#include "../include/scene_objects.h"
 
 #include <iostream>
 #include <memory>
@@ -7,7 +7,7 @@
 #include <glm/ext/matrix_transform.hpp>
 
 
-Scene::Scene(VulkanEngine* engine) {
+Scene::Scene(VulkanState* engine) {
 	Scene::pEngine = engine;
 }
 

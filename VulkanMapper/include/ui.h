@@ -2,6 +2,7 @@
 
 #include "scene.h"
 #include "media_manager.h"
+#include "vm_types.h"
 
 class Scene;
 
@@ -9,10 +10,16 @@ class MediaManager;
 
 struct Video;
 
+class VulkanState;
+
 class UI {
 private:
-	bool show_demo_window = false;
-	VulkanEngine* pEngine;
+	bool showImGuiDemoWindow = false;
+	
+	bool selectedMedia = false;
+	MediaId_t selectedMediaId = 0;
+
+	VulkanState* pEngine;
 
 	void planesMenu();
 	void drawTopBar();
@@ -23,7 +30,7 @@ private:
 	void drawVideoProperties(Video* pVideoState);
 
 public:
-	UI(VulkanEngine* pEngine);
+	UI(VulkanState* pEngine);
 
 	void drawUi();
 

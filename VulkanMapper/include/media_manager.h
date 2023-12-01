@@ -1,13 +1,14 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "vk_engine.h"
+#include "vk_state.h"
 #include <chrono>
 #include "video.h"
+#include "vm_types.h"
 
 class Video;
 
-typedef uint8_t m_id;
+class VulkanState;
 
 enum MediaType {
 	IMAGE,
@@ -15,7 +16,7 @@ enum MediaType {
 };
 
 struct Media {
-	m_id id;
+	MediaId_t id;
 	MediaType type;
 	std::string filePath;
 	Video* pState = nullptr;
@@ -23,9 +24,9 @@ struct Media {
 
 class MediaManager {
 private:
-	VulkanEngine* pEngine;
+	VulkanState* pEngine;
 	std::vector<Media> medias;
-	m_id newId();
+	MediaId_t newId();
 
 	// image
 	void loadImage(std::string filePath);
@@ -34,7 +35,7 @@ private:
 	void loadVideo(std::string filePath);
 
 public:
-	MediaManager(VulkanEngine* pEngine);
+	MediaManager(VulkanState* pEngine);
 
 	void loadFile(std::string filePath);
 	
@@ -42,6 +43,6 @@ public:
 	void decodeFrames();
 
 	std::vector<Media> getMedias();
-	Media* getMediaById(m_id mediaId);
+	Media* getMediaById(MediaId_t mediaId);
 
 };

@@ -2,16 +2,16 @@
 #include <string>
 #include <vector>
 #include <volk.h>
-#include "vk_engine.h"
+#include "vk_state.h"
 #include "media_manager.h"
 #include "video.h"
 
-class VulkanEngine;
+class VulkanState;
 
 // implementation stolen from: https://wickedengine.net/2023/05/07/vulkan-video-decoding/
 #define FRAME_FORMAT VK_FORMAT_G8_B8R8_2PLANE_420_UNORM		//YUV420
 
-struct Texture;
+struct VmTexture;
 
 struct Video;
 
@@ -27,7 +27,9 @@ struct DecodeFrameResult {
 
 class VulkanVideo {
 private:
-	VulkanEngine* pDevice;
+	VulkanState* pDevice;
+
+	VkCommandBuffer commandBuffer;
 
 	// sequence parameter set
 	std::vector<StdVideoH264SequenceParameterSet> spsArrayH264;
@@ -68,7 +70,7 @@ private:
 
 
 public:
-	VulkanVideo(VulkanEngine* pDevice);
+	VulkanVideo(VulkanState* pDevice);
 	DecodeFrameResult* decodeFrame(Video* pVideo);
 	
 	uint64_t queryDecodeVideoCapabilities();

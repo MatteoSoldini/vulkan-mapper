@@ -11,7 +11,7 @@
 #include <algorithm>
 
 
-MediaManager::MediaManager(VulkanEngine* pEngine) {
+MediaManager::MediaManager(VulkanState* pEngine) {
     MediaManager::pEngine = pEngine;
 }
 
@@ -26,8 +26,8 @@ void MediaManager::loadFile(std::string filePath) {
     }
 }
 
-m_id MediaManager::newId() {
-    m_id newId = 0;
+MediaId_t MediaManager::newId() {
+    MediaId_t newId = 0;
 
     // find new id
     for (auto media : medias) {
@@ -41,7 +41,7 @@ m_id MediaManager::newId() {
 
 
 void MediaManager::loadImage(std::string filePath) {
-    m_id id = newId();
+    MediaId_t id = newId();
     
     // read pixel data
     int width, height, channels;
@@ -81,7 +81,7 @@ std::vector<Media> MediaManager::getMedias() {
     return medias;
 }
 
-Media* MediaManager::getMediaById(m_id mediaId) {
+Media* MediaManager::getMediaById(MediaId_t mediaId) {
     for (int i = 0; i < medias.size(); i++) {
         if (medias[i].id == mediaId) {
             return &medias[i];
@@ -93,7 +93,7 @@ Media* MediaManager::getMediaById(m_id mediaId) {
 
 void MediaManager::loadVideo(std::string filePath) {
     // add video to media
-    m_id id = newId();
+    MediaId_t id = newId();
 
     Media media{};
     media.id = id;

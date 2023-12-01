@@ -101,7 +101,7 @@ void UI::drawPropertiesManager() {
         ImGui::Text("Select a media");
     }
     else {
-        m_id selectedMediaId = pSelectedPlane->getMediaId();
+        MediaId_t selectedMediaId = pSelectedPlane->getMediaId();
         Media* pMedia = pEngine->getMediaManager()->getMediaById(selectedMediaId);
 
         if (pMedia != nullptr) {
@@ -134,7 +134,7 @@ void UI::viewport() {
 
 std::string UI::openFileDialog() {
     nfdchar_t* outPath = NULL;
-    nfdchar_t* filter_list = (nfdchar_t*)"png, jpg, mp4";
+    nfdchar_t* filter_list = (nfdchar_t*)"png,jpg,mp4";
     nfdresult_t result = NFD_OpenDialog(filter_list, NULL, &outPath);
     std::string path;
 
@@ -153,32 +153,35 @@ std::string UI::openFileDialog() {
     return path;
 }
 
-void UI::drawVideoProperties(Video* pVideoState) {
-    if (pVideoState == nullptr) return;
+void UI::drawVideoProperties(Video* pVideo) {
+    if (pVideo == nullptr) return;
 
-    int currentFrame = (int)pVideoState->currentFrame;
+    int currentFrame = (int)pVideo->currentFrame;
 
-    if (pVideoState != nullptr) {
+    if (pVideo != nullptr) {
         ImGui::SliderInt("frame",
             &currentFrame,
             0,
-            (int)pVideoState->framesCount
+            (int)pVideo->framesCount
         );
     }
 
-    if (pVideoState->playing) {
+    if (ImGui::Button("first frame")) {
+        pVideo->firstFrame();
+    }
+    if (pVideo->playing) {
         if (ImGui::Button("pause")) {
-            pVideoState->pause();
+            pVideo->pause();
         }
     }
     else {
         if (ImGui::Button("play")) {
-            pVideoState->play();
+            pVideo->play();
         }
     }
 }
 
-UI::UI(VulkanEngine* pEngine) {
+UI::UI(VulkanState* pEngine) {
     UI::pEngine = pEngine;
 }
 
@@ -223,8 +226,8 @@ void UI::drawUi() {
 
     ImGui::End();
 
-    if (show_demo_window) {
-        ImGui::ShowDemoWindow();
+    if (showImGuiDemoWindow) {
+        ImGui::ShowDemoWindow(&showImGuiDemoWindow);
     }
 }
 
@@ -305,7 +308,7 @@ void UI::planesMenu() {
     ImGui::EndChild();
 
     ImGui::SeparatorText("Utility");
-    ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+    ImGui::Checkbox("Demo Window", &showImGuiDemoWindow);      // Edit bools storing our window open/close state
 
     ImGui::EndGroup();
 }

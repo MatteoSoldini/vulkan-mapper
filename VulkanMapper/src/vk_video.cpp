@@ -18,6 +18,17 @@ typedef size_t ssize_t;
 #include "../include/vk_utils.h"
 
 void VulkanVideo::createVideoSession(Video* pVideoState) {
+    // create command buffer
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = pDevice->getVideoCommandPool();
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(pDevice->getDevice(), &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
     // create fence
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -203,8 +214,6 @@ DecodeFrameResult* VulkanVideo::decodeFrame(Video* pVideoState) {
     const h264::PPS* pps = (const h264::PPS*)pVideoState->ppsData.data() + frameSliceHeader->pic_parameter_set_id;
     const h264::SPS* sps = (const h264::SPS*)pVideoState->spsData.data() + pps->seq_parameter_set_id;
 
-    VkCommandBuffer commandBuffer = pDevice->getVideoCommandBuffer();
-
     // (reference) slots info
     std::vector<VkVideoReferenceSlotInfoKHR> referenceSlotInfos;
     int refSlotPositionsCount = pVideoState->referencesPositions.size();
@@ -366,10 +375,9 @@ DecodeFrameResult* VulkanVideo::decodeFrame(Video* pVideoState) {
     return new DecodeFrameResult{ decodedImageViews[pVideoState->currentDecodePosition], decodeFence };
 }
 
-VulkanVideo::VulkanVideo(VulkanEngine* pDevice) {
+VulkanVideo::VulkanVideo(VulkanState* pDevice) {
     VulkanVideo::pDevice = pDevice;
 }
-
 
 uint64_t VulkanVideo::queryDecodeVideoCapabilities() {
     decodeProfile = {};

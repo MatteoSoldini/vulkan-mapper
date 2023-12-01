@@ -8,7 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-VulkanOutput::VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanEngine* pDevice) {
+VulkanOutput::VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanState* pDevice) {
     VulkanOutput::sharedEngineState = sharedEngineState;
     VulkanOutput::pDevice = pDevice;
 }
@@ -608,7 +608,7 @@ void VulkanOutput::recordCommandBuffer(uint32_t imageIndex) {
         if (pipelineName == "texture") {
             auto plane = dynamic_cast<Plane*>(object);
             if (plane != nullptr) {
-                Texture texture = (*(sharedEngineState.pTextures))[plane->getMediaId()];
+                VmTexture texture = (*(sharedEngineState.pTextures))[plane->getMediaId()];
                 vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &texture.descriptorSet, 0, nullptr);
             }
 

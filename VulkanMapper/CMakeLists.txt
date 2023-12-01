@@ -1,8 +1,8 @@
 ﻿add_executable(VulkanMapper 
 	main.cpp
 	include/vk_types.h
-	include/vk_engine.h
-	src/vk_engine.cpp
+	"include/vk_state.h"
+	"src/vk_state.cpp"
 	include/vk_output.h
 	src/vk_output.cpp
 	include/scene.h
@@ -13,15 +13,15 @@
 	src/read_file.cpp
 	include/ui.h
 	src/ui.cpp
-	include/vk_objects.h
-	src/vk_objects.cpp
+	"include/scene_objects.h"
+	"src/scene_objects.cpp"
 	include/vk_utils.h
 	src/vk_utils.cpp
 	include/vk_video.h
 	src/vk_video.cpp
 	include/video.h
 	src/video.cpp
-)
+ "include/vm_types.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET VulkanMapper PROPERTY CXX_STANDARD 20)

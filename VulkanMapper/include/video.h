@@ -1,13 +1,18 @@
 #pragma once
+
 #include <vector>
 #include <chrono>
 #include <string>
 
 #include "vk_video.h"
+#include "vk_state.h"
+#include "vm_types.h"
 
 class VulkanVideo;
 
 struct DecodeFrameResult;
+
+class VulkanState;
 
 enum FrameType {
 	IntraFrame = 0,			// full video frame
@@ -28,7 +33,9 @@ struct FrameInfo {
 
 class Video {
 private:
-	VulkanEngine* pDevice;
+	VulkanState* pDevice;
+	VmVideoFrameStreamId_t vmVideoFrameStreamId;
+	bool presentAFrame = true; // emit first frame anyways
 
 public:
 	uint32_t width = 0;
@@ -61,7 +68,7 @@ public:
 	uint8_t currentDecodePosition = 0;
 	uint8_t nextDecodePosition = 0;
 
-	Video(VulkanEngine* pDevice, std::string filePath);
+	Video(VulkanState* pDevice, std::string filePath);
 
 	uint64_t currentFrame = 0;
 	uint32_t framesCount = 0;
@@ -72,4 +79,9 @@ public:
 	bool playing = false;	// default: not playing
 	void pause();
 	void play();
+	void firstFrame();
+
+	VmVideoFrameStreamId_t getVmVideoFrameStreamId() {
+		return vmVideoFrameStreamId;
+	}
 };
