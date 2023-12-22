@@ -7,6 +7,7 @@
 #include "vk_video.h"
 #include "vk_state.h"
 #include "vm_types.h"
+#include "media.h"
 
 class VulkanVideo;
 
@@ -31,7 +32,7 @@ struct FrameInfo {
 	int displayOrder = 0;
 };
 
-class Video {
+class Video : public Media {
 private:
 	VulkanState* pDevice;
 	VmVideoFrameStreamId_t vmVideoFrameStreamId;
@@ -68,7 +69,7 @@ public:
 	uint8_t currentDecodePosition = 0;
 	uint8_t nextDecodePosition = 0;
 
-	Video(VulkanState* pDevice, std::string filePath);
+	Video(MediaId_t id, VulkanState* pDevice, std::string filePath);
 
 	uint64_t currentFrame = 0;
 	uint32_t framesCount = 0;

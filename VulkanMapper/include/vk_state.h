@@ -29,8 +29,11 @@ struct PipelineToLoad {
     std::vector<VkDescriptorSetLayout*> descriptorSetLayouts;
 };
 
+typedef uint8_t VmTextureId_t;
+
 // runtime object
 struct VmTexture{
+    VmTextureId_t id;
     VkImage image;
     VkDeviceMemory imageMemory;
     VkImageView imageView;
@@ -146,7 +149,7 @@ private:
     std::vector<VkFramebuffer> viewportFramebuffers;
 
     // textures
-    std::map<uint8_t, VmTexture> textures;
+    std::vector<VmTexture> textures;
 
     // pipelines
     std::map<std::string, Pipeline> pipelines;
@@ -290,7 +293,7 @@ private:
     void recordImGuiCommandBuffer(uint32_t imageIndex);
 
 public:
-    void loadTexture(uint8_t id, unsigned char* pixels, int width, int height);
+    VmTextureId_t loadTexture(unsigned char* pixels, int width, int height);
 
     // video frame stream
     VmVideoFrameStreamId_t createVideoFrameStream();

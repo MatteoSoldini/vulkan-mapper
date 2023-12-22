@@ -31,7 +31,7 @@
 			- [x] rendering image view should be updated only after decode operation (validator error)
 			- [x] FIX: every loop, the image view gets updated since `decodeFrame` returns the current image view from the dpb every time
 		- [x] multiple video
-- [ ] media selection like resolume arena:
+- [x] media selection like resolume arena:
 	- 2 buttons, one for plane, one for media selection
 - [ ] media remove
 
@@ -40,7 +40,6 @@
 - video input implementation (ex. OBS can be used as a source)
 	- OBS can be used to implement scenes & sound
 - plane move could be more efficient, now is computing homography matrix on single marker move, when moving a plane all 4 markers gets moved one at a time
-- video playback
 - scenes
 - timelines
 - input area for each plane

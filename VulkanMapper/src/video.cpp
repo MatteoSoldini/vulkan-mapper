@@ -14,7 +14,7 @@ static int read_callback(int64_t offset, void* buffer, size_t size, void* token)
     return to_copy != size;
 }
 
-Video::Video(VulkanState* pDevice, std::string filePath) {
+Video::Video(MediaId_t id, VulkanState* pDevice, std::string filePath) : Media(id, filePath) {
     Video::pDevice = pDevice;
     pVkDecoder = new VulkanVideo(pDevice);
 

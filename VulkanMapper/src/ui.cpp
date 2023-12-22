@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <nfd.h>
+#include "../include/image.h"
 
 void UI::drawTopBar() {
     if (ImGui::BeginMainMenuBar()) {
@@ -26,7 +27,7 @@ void UI::drawTopBar() {
 
 void UI::drawMediaManager() {
     MediaManager* pMediaManager = pEngine->getMediaManager();
-    std::vector<Media> medias = pMediaManager->getMedias();
+    auto mediasIds = pMediaManager->getMediasIds();
 
     Scene* pScene = pEngine->getScene();
 
@@ -45,26 +46,29 @@ void UI::drawMediaManager() {
         }
     }
 
-    for (auto media : medias) {
+    for (auto mediaId : mediasIds) {
         bool selected = false;
 
         if (pSelectedPlane != nullptr) {
-            if (pSelectedPlane->getMediaId() == media.id) {
+            if (pSelectedPlane->getMediaId() == mediaId) {
                 selected = true;
             }
         }
 
         ImGui::SameLine();
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::BeginChild((std::string("media_") + std::to_string(media.id)).c_str(), ImVec2(100, 100), true);
+        ImGui::BeginChild((std::string("media_") + std::to_string(mediaId)).c_str(), ImVec2(100, 100), true);
         
-        std::string fullText = media.filePath.substr(media.filePath.find_last_of("\\") + 1);
+        Media* pMedia = pMediaManager->getMediaById(mediaId);
+        
+        // text adjust
+        std::string fullText = pMedia->getFilePath().substr(pMedia->getFilePath().find_last_of("\\") + 1);
         std::string buttonText = "";
         uint32_t letterCount = 0;
 
         for (auto letter : fullText) {
             buttonText.push_back(letter);
-            letterCount = ++letterCount % 10;
+            letterCount = ++letterCount % 12;
             if (letterCount == 0) buttonText += '\n';
         }
 
@@ -73,12 +77,23 @@ void UI::drawMediaManager() {
             buttonText.c_str(),
             selected,
             0,
-            ImVec2{ ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y }
+            ImVec2{ ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 25.0f }
         )) {
             if (pSelectedPlane != nullptr) {
-                pSelectedPlane->setMediaId(media.id);
+                pSelectedPlane->setMediaId(pMedia->getId());
+                selectMedia(pMedia->getId());
             }
         }
+
+        if (ImGui::Selectable(
+            (std::string("Media ") + std::to_string(pMedia->getId())).c_str(),
+            selectedMediaId == pMedia->getId() && selectedMedia,
+            0,
+            ImVec2{ ImGui::GetContentRegionAvail().x, 20.0f }
+        )) {
+            selectMedia(pMedia->getId());
+        }
+
         ImGui::PopStyleVar();
         
         ImGui::EndChild();
@@ -90,32 +105,22 @@ void UI::drawMediaManager() {
 void UI::drawPropertiesManager() {
     ImGui::SeparatorText("Properties manager");
 
-    Scene* pScene = pEngine->getScene();
-    int selectedObjId = pScene->getSelectedObjectId();
-    Plane* pSelectedPlane = nullptr;
-    if (selectedObjId != -1) {
-        pSelectedPlane = dynamic_cast<Plane*>(pScene->getObjectPointer(selectedObjId));
-    }
-
-    if (pSelectedPlane == nullptr) {
+    if (!selectedMedia) {
         ImGui::Text("Select a media");
     }
     else {
-        MediaId_t selectedMediaId = pSelectedPlane->getMediaId();
         Media* pMedia = pEngine->getMediaManager()->getMediaById(selectedMediaId);
 
         if (pMedia != nullptr) {
-            ImGui::Text("File name: %s", pMedia->filePath.c_str());
-            
-            switch (pMedia->type) {
-            case MediaType::VIDEO:
+            ImGui::Text("File name: %s", pMedia->getFilePath().c_str());
+            if (auto pVideo = dynamic_cast<Video*>(pMedia)) {
                 ImGui::Text("Type: Video");
-                drawVideoProperties(pMedia->pState);
-                break;
-            case MediaType::IMAGE:
+                drawVideoProperties(pVideo);
+            }
+            else if (auto pImage = dynamic_cast<Image*>(pMedia)) {
                 ImGui::Text("Type: Image");
-                break;
-            default:
+            }
+            else {
                 ImGui::Text("Type: Unknown");
             }
         }
@@ -231,6 +236,15 @@ void UI::drawUi() {
     }
 }
 
+void UI::selectMedia(MediaId_t mediaId) {
+    selectedMediaId = mediaId;
+    selectedMedia = true;
+}
+
+void UI::deselectMedia() {
+    selectedMedia = false;
+}
+
 void UI::planesMenu() {
     Scene* pScene = pEngine->getScene();
 
@@ -273,21 +287,6 @@ void UI::planesMenu() {
 
                     ImGui::Text("x: %.3f \t y: %.3f", vertex_normal.x * flat_t, vertex_normal.y * flat_t);
                 }
-                /*
-                ImGui::SeparatorText("Image");
-
-                std::string button_label = plane_ptr->getImageId();
-                if (button_label.size() == 0) {
-                    button_label = "Load";
-                }
-
-                if (ImGui::Button(button_label.c_str())) {
-                    std::string image_path = openFileDialog();
-                    if (!image_path.empty()) {
-                        plane_ptr->setImageId(image_path);
-                    }
-                }
-                */
 
                 ImGui::SeparatorText("Functions");
                 if (ImGui::Button("Remove")) {

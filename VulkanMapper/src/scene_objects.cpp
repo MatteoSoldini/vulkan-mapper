@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <iostream>
+#include "../include/image.h"
 
 // Rect
 Marker::Marker(Scene* scene_ptr, float pos_x, float pos_y, glm::vec3 color, uint8_t parent_id, uint16_t vertex_id) {
@@ -105,11 +106,11 @@ std::vector<uint16_t> Plane::getIndices() {
 std::string Plane::getPipelineName() {
     if (mediaId != -1) {
         Media* pMedia = pScene->getEngine()->getMediaManager()->getMediaById(mediaId);
-        if (pMedia->type == MediaType::IMAGE) { return "texture"; }
-        else if (pMedia->type == MediaType::VIDEO) { return "video_frame"; }
-        else return "color";
+        if (dynamic_cast<Image*>(pMedia) != nullptr) { return "texture"; }
+        if (dynamic_cast<Video*>(pMedia) != nullptr) { return "video_frame"; }
     }
-    else return "color";
+
+    return "color";
 }
 
 void Plane::setMediaId(uint8_t id) {

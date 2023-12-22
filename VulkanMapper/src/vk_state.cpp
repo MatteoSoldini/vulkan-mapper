@@ -793,9 +793,9 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
             if (pPlane == nullptr) break;
             
             Media* pMedia = pMediaManager->getMediaById(pPlane->getMediaId());
-            if (pMedia->type != MediaType::VIDEO) break;
+            //if (pMedia->type != MediaType::VIDEO) break;
             
-            Video* pVideo = dynamic_cast<Video*>(pMedia->pState);
+            Video* pVideo =  dynamic_cast<Video*>(pMedia);
             if (pVideo == nullptr) break;
 
             auto vmVideoFrameStream = vmVideoFrameStreams[pVideo->getVmVideoFrameStreamId()];
@@ -1741,7 +1741,7 @@ void VulkanState::mainLoop() {
         // window events
         glfwPollEvents();
 
-        pMediaManager->decodeFrames();
+        pMediaManager->decodeLoop();
 
         drawFrame();
 
@@ -1781,9 +1781,9 @@ void VulkanState::cleanup() {
 
     // destroy textures
     for (auto texture : textures) {
-        vkDestroyImageView(device, texture.second.imageView, nullptr);
-        vkDestroyImage(device, texture.second.image, nullptr);
-        vkFreeMemory(device, texture.second.imageMemory, nullptr);
+        vkDestroyImageView(device, texture.imageView, nullptr);
+        vkDestroyImage(device, texture.image, nullptr);
+        vkFreeMemory(device, texture.imageMemory, nullptr);
     }
 
     // Destroy uniform buffers
@@ -2065,8 +2065,7 @@ void VulkanState::imGuiCleanup() {
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
 }
-
-void VulkanState::loadTexture(uint8_t id, unsigned char* pixels, int width, int height) {
+VmTextureId_t VulkanState::loadTexture(unsigned char* pixels, int width, int height) {
     VkDeviceSize imageSize = width * height * 4;
 
     // transfer image
@@ -2123,15 +2122,26 @@ void VulkanState::loadTexture(uint8_t id, unsigned char* pixels, int width, int 
 
     vkUpdateDescriptorSets(device, 1, &descriptor_writes, 0, nullptr);
 
-    VmTexture new_texture{};
-    new_texture.image = texture_image;
-    new_texture.imageMemory = texture_image_memory;
-    new_texture.imageView = image_view;
-    new_texture.descriptorSet = descriptor_set;
-    new_texture.width = width;
-    new_texture.height = height;
+    // find new id
+    VmTextureId_t newId = 0;
+    for (auto texture : textures) {
+        if (texture.id >= newId) {
+            newId = texture.id + 1;
+        }
+    }
 
-    textures.emplace(id, new_texture);
+    VmTexture newTexture{};
+    newTexture.id = newId;
+    newTexture.image = texture_image;
+    newTexture.imageMemory = texture_image_memory;
+    newTexture.imageView = image_view;
+    newTexture.descriptorSet = descriptor_set;
+    newTexture.width = width;
+    newTexture.height = height;
+
+    textures.push_back(newTexture);
+
+    return newId;
 }
 
 VmVideoFrameStreamId_t VulkanState::createVideoFrameStream() {

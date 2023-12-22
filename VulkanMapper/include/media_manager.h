@@ -2,37 +2,19 @@
 #include <string>
 #include <vector>
 #include "vk_state.h"
-#include <chrono>
 #include "video.h"
 #include "vm_types.h"
+#include "media.h"
 
 class Video;
 
 class VulkanState;
 
-enum MediaType {
-	IMAGE,
-	VIDEO,
-};
-
-struct Media {
-	MediaId_t id;
-	MediaType type;
-	std::string filePath;
-	Video* pState = nullptr;
-};
-
 class MediaManager {
 private:
 	VulkanState* pEngine;
-	std::vector<Media> medias;
+	std::vector<Media*> medias;
 	MediaId_t newId();
-
-	// image
-	void loadImage(std::string filePath);
-
-	// video
-	void loadVideo(std::string filePath);
 
 public:
 	MediaManager(VulkanState* pEngine);
@@ -40,9 +22,8 @@ public:
 	void loadFile(std::string filePath);
 	
 	// video decode loop
-	void decodeFrames();
+	void decodeLoop();
 
-	std::vector<Media> getMedias();
+	std::vector<MediaId_t> getMediasIds();
 	Media* getMediaById(MediaId_t mediaId);
-
 };
