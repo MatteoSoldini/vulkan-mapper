@@ -67,11 +67,11 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
 
     // allocate and bind memory
     //internal_state->allocations.resize(requirement_count);
+    videoSessionMemories.resize(requirementsCount);
     for (uint32_t i = 0; i < requirementsCount; ++i) {
         VkMemoryRequirements memoryRequirements = videoSessionRequirements[i].memoryRequirements;
         
         // allocate memory
-        VkDeviceMemory memory;
         VkMemoryAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memoryRequirements.size;
@@ -81,14 +81,14 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
             memoryRequirements.memoryTypeBits
         );
 
-        if (vkAllocateMemory(pDevice->getDevice(), &allocInfo, nullptr, &memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(pDevice->getDevice(), &allocInfo, nullptr, &videoSessionMemories[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate memory");
         }
 
         // bind memory
         VkBindVideoSessionMemoryInfoKHR bindInfo = {};
         bindInfo.sType = VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR;
-        bindInfo.memory = memory;
+        bindInfo.memory = videoSessionMemories[i];
         bindInfo.memoryBindIndex = videoSessionRequirements[i].memoryBindIndex;
         bindInfo.memoryOffset = 0;
         bindInfo.memorySize = allocInfo.allocationSize;
@@ -377,6 +377,30 @@ DecodeFrameResult* VulkanVideo::decodeFrame(Video* pVideoState) {
 
 VulkanVideo::VulkanVideo(VulkanState* pDevice) {
     VulkanVideo::pDevice = pDevice;
+}
+
+VulkanVideo::~VulkanVideo() {
+    // destroy bitstream buffer
+    vkDestroyBuffer(pDevice->getDevice(), videoBitStreamBuffer, nullptr);
+    vkFreeMemory(pDevice->getDevice(), videoBitStreamBufferMemory, nullptr);
+
+    // destroy dpb
+    vkDestroyImageView(pDevice->getDevice(), dpbImageView, nullptr);
+    vkDestroyImage(pDevice->getDevice(), dpbImage, nullptr);
+    vkFreeMemory(pDevice->getDevice(), dpbImageMemory, nullptr);
+    for (auto decodedImageView : decodedImageViews) {
+        vkDestroyImageView(pDevice->getDevice(), decodedImageView, nullptr);
+    }
+
+    // destroy decode fence
+    vkDestroyFence(pDevice->getDevice(), decodeFence, nullptr);
+
+    // destroy video session
+    vkDestroyVideoSessionParametersKHR(pDevice->getDevice(), videoSessionParameters, nullptr);
+    vkDestroyVideoSessionKHR(pDevice->getDevice(), videoSession, nullptr);
+    for (auto videoSessionMemory : videoSessionMemories) {
+        vkFreeMemory(pDevice->getDevice(), videoSessionMemory, nullptr);
+    }
 }
 
 uint64_t VulkanVideo::queryDecodeVideoCapabilities() {

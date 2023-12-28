@@ -85,4 +85,6 @@ public:
 	VmVideoFrameStreamId_t getVmVideoFrameStreamId() {
 		return vmVideoFrameStreamId;
 	}
+
+	~Video();
 };

@@ -1,5 +1,6 @@
 # doing
 - [ ] fullscreen projection window
+	- [ ] single renderer function
 	- [x] implementation
 	- [x] FIXME: closing app with projection window open causes validation error
 	- [ ] test on second monitor

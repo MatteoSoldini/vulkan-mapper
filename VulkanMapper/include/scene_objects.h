@@ -64,7 +64,7 @@ public:
 		return Plane::mediaId;
 	}
 
-	void setMediaId(uint8_t m_id);
+	void setMediaId(int m_id);
 
 	void hoveringStart();
 	void hoveringStop();

@@ -113,7 +113,7 @@ std::string Plane::getPipelineName() {
     return "color";
 }
 
-void Plane::setMediaId(uint8_t id) {
+void Plane::setMediaId(int id) {
     Plane::mediaId = id;
 }
 

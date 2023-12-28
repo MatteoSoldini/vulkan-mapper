@@ -123,7 +123,14 @@ void UI::drawPropertiesManager() {
             else {
                 ImGui::Text("Type: Unknown");
             }
+
+            ImGui::SeparatorText("Functions");
+            if (ImGui::Button("Remove")) {
+                pEngine->getMediaManager()->removeMedia(pMedia->getId());
+            }
         }
+
+        
     }
 }
 

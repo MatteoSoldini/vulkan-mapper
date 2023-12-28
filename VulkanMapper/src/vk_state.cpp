@@ -798,25 +798,29 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
             Video* pVideo =  dynamic_cast<Video*>(pMedia);
             if (pVideo == nullptr) break;
 
-            auto vmVideoFrameStream = vmVideoFrameStreams[pVideo->getVmVideoFrameStreamId()];
+            auto& vmVideoFrameStream = vmVideoFrameStreams[pVideo->getVmVideoFrameStreamId()];
 
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = vmVideoFrameStream.currentImageView;
-            imageInfo.sampler = ycbcrFrameSampler;
+            if (vmVideoFrameStream.imageViewsInFlight[currentFrame] != vmVideoFrameStream.frameImageView) {
+                VkDescriptorImageInfo imageInfo{};
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfo.imageView = vmVideoFrameStream.frameImageView;
+                imageInfo.sampler = ycbcrFrameSampler;
 
-            VkWriteDescriptorSet descriptorWrites{};
-            descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites.dstSet = vmVideoFrameStream.descriptorSetsInFlight[currentFrame];
-            descriptorWrites.dstBinding = 0;
-            descriptorWrites.dstArrayElement = 0;
-            descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites.descriptorCount = 1;
-            descriptorWrites.pImageInfo = &imageInfo;
-            descriptorWrites.pNext = nullptr;
+                VkWriteDescriptorSet descriptorWrites{};
+                descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites.dstSet = vmVideoFrameStream.descriptorSetsInFlight[currentFrame];
+                descriptorWrites.dstBinding = 0;
+                descriptorWrites.dstArrayElement = 0;
+                descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites.descriptorCount = 1;
+                descriptorWrites.pImageInfo = &imageInfo;
+                descriptorWrites.pNext = nullptr;
 
-            vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);   // executed immediately
+                vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);   // executed immediately
 
+                vmVideoFrameStream.imageViewsInFlight[currentFrame] = vmVideoFrameStream.frameImageView;
+            }
+            
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &vmVideoFrameStream.descriptorSetsInFlight[currentFrame], 0, nullptr);
         }
 
@@ -1674,15 +1678,22 @@ void VulkanState::drawFrame() {
     // wait for previous frame
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
+    // recreate swapchain on windows resize/minimize
+    if (framebufferResized) {
+        recreateSwapChain();
+        framebufferResized = false;
+    }
+
     // acquiring an image from the swap chain
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    // recreate swapchain on error
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreateSwapChain();
         return;
     }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
@@ -1741,7 +1752,7 @@ void VulkanState::mainLoop() {
         // window events
         glfwPollEvents();
 
-        pMediaManager->decodeLoop();
+        pMediaManager->updateMedia();
 
         drawFrame();
 
@@ -1769,6 +1780,8 @@ void VulkanState::cleanupSwapChain() {
 }
 
 void VulkanState::cleanup() {
+    pMediaManager->cleanup();
+
     cleanupSwapChain();
 
     // destroy viewport render
@@ -1777,13 +1790,14 @@ void VulkanState::cleanup() {
     // imgui
     imGuiCleanup();
 
+    // destroy samplers
     vkDestroySampler(device, textureSampler, nullptr);
+    vkDestroySamplerYcbcrConversion(device, ycbcrSamplerConversion, nullptr);
+    vkDestroySampler(device, ycbcrFrameSampler, nullptr);
 
     // destroy textures
     for (auto texture : textures) {
-        vkDestroyImageView(device, texture.imageView, nullptr);
-        vkDestroyImage(device, texture.image, nullptr);
-        vkFreeMemory(device, texture.imageMemory, nullptr);
+        destroyTexture(texture.id);
     }
 
     // Destroy uniform buffers
@@ -1796,8 +1810,9 @@ void VulkanState::cleanup() {
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
     // destroy descriptor set layouts
-    vkDestroyDescriptorSetLayout(device, uniformBufferLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, textureLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, videoFrameLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, uniformBufferLayout, nullptr);
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -1815,8 +1830,10 @@ void VulkanState::cleanup() {
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(device, inFlightFences[i], nullptr);
     }
-
+    
+    // destroy command buffers
     vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyCommandPool(device, videoCommandPool, nullptr);
 
     vkDestroyDevice(device, nullptr);
 
@@ -2144,6 +2161,19 @@ VmTextureId_t VulkanState::loadTexture(unsigned char* pixels, int width, int hei
     return newId;
 }
 
+void VulkanState::destroyTexture(VmTextureId_t textureId) {
+    for (size_t i = 0; i < textures.size(); i++) {
+        if (textures[i].id == textureId) {
+            vkDeviceWaitIdle(device);
+            vkDestroyImageView(device, textures[i].imageView, nullptr);
+            vkDestroyImage(device, textures[i].image, nullptr);
+            vkFreeMemory(device, textures[i].imageMemory, nullptr);
+
+            textures.erase(textures.begin() + i);
+        }
+    }
+}
+
 VmVideoFrameStreamId_t VulkanState::createVideoFrameStream() {
     VmVideoFrameStreamId_t newId = 0;
 
@@ -2170,16 +2200,26 @@ VmVideoFrameStreamId_t VulkanState::createVideoFrameStream() {
         }
     }
 
+    videoFrameStream.imageViewsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
+
     vmVideoFrameStreams.push_back(videoFrameStream);
 
     return newId;
+}
+
+void VulkanState::removeVideoFrameStream(VmVideoFrameStreamId_t streamId) {
+    for (VmVideoFrameStreamId_t i = 0; i < vmVideoFrameStreams.size(); i++) {
+        if (vmVideoFrameStreams[i].id == streamId) {
+            vmVideoFrameStreams.erase(vmVideoFrameStreams.begin() + i);
+        }
+    }
 }
 
 void VulkanState::loadVideoFrame(VmVideoFrameStreamId_t vmVideoFrameStreamId, VkImageView videoFrameView) {
     // search if already exist
     for (auto& vmVideoFrameStream : vmVideoFrameStreams) {
         if (vmVideoFrameStream.id == vmVideoFrameStreamId) {
-            vmVideoFrameStream.currentImageView = videoFrameView;
+            vmVideoFrameStream.frameImageView = videoFrameView;
             return;
         }
     }

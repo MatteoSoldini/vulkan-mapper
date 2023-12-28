@@ -10,4 +10,6 @@ private:
 
 public:
 	Image(MediaId_t id, VulkanState* pDevice, std::string filePath);
+
+	~Image();
 };

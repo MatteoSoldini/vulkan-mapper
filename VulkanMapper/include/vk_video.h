@@ -45,7 +45,7 @@ private:
 	VkImage dpbImage;	// multi layer
 	VkDeviceMemory dpbImageMemory;
 	VkImageView dpbImageView;
-	std::vector<VkImageView> decodedImageViews;	
+	std::vector<VkImageView> decodedImageViews;
 
 	//uint32_t numReferenceFrames = 0;	// max number of frame used as reference (same as numDpbSlots)
 
@@ -57,7 +57,8 @@ private:
 	VkVideoCapabilitiesKHR videoCapabilities;
 	uint64_t bitStreamAlignment;
 
-	// decoder -> CHECKME: consider moving to vulkan device class
+	// video session
+	std::vector<VkDeviceMemory> videoSessionMemories;
 	VkVideoSessionParametersKHR videoSessionParameters;
 	VkVideoSessionKHR videoSession = VK_NULL_HANDLE;
 
@@ -71,6 +72,7 @@ private:
 
 public:
 	VulkanVideo(VulkanState* pDevice);
+	~VulkanVideo();
 	DecodeFrameResult* decodeFrame(Video* pVideo);
 	
 	uint64_t queryDecodeVideoCapabilities();

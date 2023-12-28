@@ -20,3 +20,7 @@ Image::Image(MediaId_t id, VulkanState* pDevice, std::string filePath) : Media(i
     // free data
     stbi_image_free(pixels);
 }
+
+Image::~Image() {
+    pDevice->destroyTexture(textureId);
+}

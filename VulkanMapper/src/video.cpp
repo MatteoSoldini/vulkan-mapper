@@ -347,3 +347,7 @@ void Video::firstFrame() {
 
     presentAFrame = true;
 }
+
+Video::~Video() {
+    delete pVkDecoder;
+}

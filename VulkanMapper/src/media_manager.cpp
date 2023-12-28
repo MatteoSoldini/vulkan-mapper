@@ -37,13 +37,35 @@ MediaId_t MediaManager::newId() {
     return newId;
 }
 
-void MediaManager::decodeLoop() {
-    // check for any video that need decoding
+void MediaManager::updateMedia() {
+    // video decode
     for (auto media : medias) {
         if (auto pVideo = dynamic_cast<Video*>(media)) {   // VIDEO
             pVideo->decodeFrame();
         }
     }
+
+    // remove media
+    for (auto mediaId : toRemove) {
+        for (int i = 0; i < medias.size(); i++) {
+            if (medias[i]->getId() == mediaId) {
+                // clear objects using this media
+                std::vector<uint8_t> objectsIds = pEngine->getScene()->getIds();
+                for (auto objectId : objectsIds) {
+                    auto pObject = pEngine->getScene()->getObjectPointer(objectId);
+                    if (auto pPlane = dynamic_cast<Plane*>(pObject)) {
+                        if (pPlane->getMediaId() == mediaId) {
+                            pPlane->setMediaId(-1);
+                        }
+                    }
+                }
+
+                delete medias[i];
+                medias.erase(medias.begin() + i);
+            }
+        }
+    }
+    if (toRemove.size() > 0) toRemove.clear();
 }
 
 std::vector<MediaId_t> MediaManager::getMediasIds() {
@@ -64,4 +86,14 @@ Media* MediaManager::getMediaById(MediaId_t mediaId) {
     }
 
     return nullptr;
+}
+
+void MediaManager::removeMedia(MediaId_t mediaId) {
+    toRemove.push_back(mediaId);
+}
+
+void MediaManager::cleanup() {
+    for (auto media : medias) {
+        delete media;
+    }
 }

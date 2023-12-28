@@ -51,8 +51,9 @@ struct Pipeline {
 // video frames pushed to the engine
 struct VmVideoFrameStream {
     VmVideoFrameStreamId_t id;
-    VkImageView currentImageView = VK_NULL_HANDLE;
+    VkImageView frameImageView = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> descriptorSetsInFlight;
+    std::vector<VkImageView> imageViewsInFlight;    // the current image view corrisponding to the descriptor set
 };
 
 class Scene;
@@ -165,7 +166,6 @@ private:
     std::vector<void*> uniformBuffersMapped;
 
     bool framebufferResized = false;
-
 
     // imgui
     VkCommandPool imGuiCommandPool;
@@ -294,9 +294,11 @@ private:
 
 public:
     VmTextureId_t loadTexture(unsigned char* pixels, int width, int height);
+    void destroyTexture(VmTextureId_t textureId);
 
     // video frame stream
     VmVideoFrameStreamId_t createVideoFrameStream();
+    void removeVideoFrameStream(VmVideoFrameStreamId_t streamId);
     void loadVideoFrame(VmVideoFrameStreamId_t vmVideoFrameStreamId, VkImageView videoFrameView);
 
     // output
