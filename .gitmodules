@@ -7,3 +7,6 @@
 [submodule ".\\VulkanMapper\\dependencies\\glm"]
 	path = .\\VulkanMapper\\dependencies\\glm
 	url = https://github.com/g-truc/glm
+[submodule ".\\VulkanMapper\\dependencies\\glfw"]
+	path = .\\VulkanMapper\\dependencies\\glfw
+	url = https://github.com/glfw/glfw
