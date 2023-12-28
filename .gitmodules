@@ -4,3 +4,6 @@
 [submodule ".\\VulkanMapper\\dependencies\\volk"]
 	path = .\\VulkanMapper\\dependencies\\volk
 	url = https://github.com/zeux/volk
+[submodule ".\\VulkanMapper\\dependencies\\glm"]
+	path = .\\VulkanMapper\\dependencies\\glm
+	url = https://github.com/g-truc/glm
