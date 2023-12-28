@@ -1,0 +1,6 @@
+[submodule ".\\VulkanMapper\\dependencies\\imgui"]
+	path = .\\VulkanMapper\\dependencies\\imgui
+	url = https://github.com/ocornut/imgui
+[submodule ".\\VulkanMapper\\dependencies\\volk"]
+	path = .\\VulkanMapper\\dependencies\\volk
+	url = https://github.com/zeux/volk
