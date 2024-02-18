@@ -89,9 +89,9 @@ int runCommandArray(char** stdOut, int* stdOutByteCount, int* returnCode, int in
             }
 
             // unused
-            release_assert(close(parentToChild[WRITE_FD]) == 0);
-            release_assert(close(childToParent[READ_FD ]) == 0);
-            release_assert(close(errPipe[READ_FD]) == 0);
+            release_assert(setClose(parentToChild[WRITE_FD]) == 0);
+            release_assert(setClose(childToParent[READ_FD ]) == 0);
+            release_assert(setClose(errPipe[READ_FD]) == 0);
             
             const char* command = allArgs[0];
             execvp(command, allArgs);
@@ -100,9 +100,9 @@ int runCommandArray(char** stdOut, int* stdOutByteCount, int* returnCode, int in
             ssize_t result = write(errPipe[WRITE_FD], &err, 1);
             release_assert(result != -1);
             
-            close(errPipe[WRITE_FD]);
-            close(parentToChild[READ_FD]);
-            close(childToParent[WRITE_FD]);
+            setClose(errPipe[WRITE_FD]);
+            setClose(parentToChild[READ_FD]);
+            setClose(childToParent[WRITE_FD]);
 
             exit(0);
         }
@@ -111,9 +111,9 @@ int runCommandArray(char** stdOut, int* stdOutByteCount, int* returnCode, int in
         default: // parent
         {
             // unused
-            release_assert(close(parentToChild[READ_FD]) == 0);
-            release_assert(close(childToParent[WRITE_FD]) == 0);
-            release_assert(close(errPipe[WRITE_FD]) == 0);
+            release_assert(setClose(parentToChild[READ_FD]) == 0);
+            release_assert(setClose(childToParent[WRITE_FD]) == 0);
+            release_assert(setClose(errPipe[WRITE_FD]) == 0);
 
             while(1)
             {
@@ -126,13 +126,13 @@ int runCommandArray(char** stdOut, int* stdOutByteCount, int* returnCode, int in
                         release_assert(waitpid(pid, &status, 0) == pid);
 
                         // done with these now
-                        release_assert(close(parentToChild[WRITE_FD]) == 0);
-                        release_assert(close(childToParent[READ_FD]) == 0);
+                        release_assert(setClose(parentToChild[WRITE_FD]) == 0);
+                        release_assert(setClose(childToParent[READ_FD]) == 0);
 
                         char errChar = 0;
                         ssize_t result = read(errPipe[READ_FD], &errChar, 1);
                         release_assert(result != -1);
-                        close(errPipe[READ_FD]);
+                        setClose(errPipe[READ_FD]);
 
                         if(errChar)
                         {

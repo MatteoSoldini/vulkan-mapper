@@ -3,18 +3,17 @@
 // Load volk definitions once
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
-
-#include "include/vk_state.h"
+#include "include/app.h"
 
 int main() {
-  VulkanState engine;
+	App app;
 
-  try {
-    engine.run();
-  } catch (const std::exception& e) {
-    std::cerr << e.what() << std::endl;
-    return EXIT_FAILURE;
-  }
+	try {
+		app.run();
+	} catch (const std::exception& e) {
+		std::cerr << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
 
-  return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

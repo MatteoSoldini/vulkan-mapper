@@ -9,18 +9,18 @@
 #include "../include/image.h"
 
 
-MediaManager::MediaManager(VulkanState* pEngine) {
-    MediaManager::pEngine = pEngine;
+MediaManager::MediaManager(App* pApp) {
+    MediaManager::pApp = pApp;
 }
 
 void MediaManager::loadFile(std::string filePath) {
     std::string fileExtension = filePath.substr(filePath.find_last_of(".") + 1);
 
     if (fileExtension == "mp4") {
-        medias.push_back(new Video(newId(), pEngine, filePath));
+        medias.push_back(new Video(newId(), pApp->getVulkanState(), filePath));
     }
     else if (fileExtension == "jpg" || fileExtension == "png") {
-        medias.push_back(new Image(newId(), pEngine, filePath));
+        medias.push_back(new Image(newId(), pApp->getVulkanState(), filePath));
     }
 }
 
@@ -50,9 +50,9 @@ void MediaManager::updateMedia() {
         for (int i = 0; i < medias.size(); i++) {
             if (medias[i]->getId() == mediaId) {
                 // clear objects using this media
-                std::vector<uint8_t> objectsIds = pEngine->getScene()->getIds();
+                std::vector<uint8_t> objectsIds = pApp->getScene()->getIds();
                 for (auto objectId : objectsIds) {
-                    auto pObject = pEngine->getScene()->getObjectPointer(objectId);
+                    auto pObject = pApp->getScene()->getObjectPointer(objectId);
                     if (auto pPlane = dynamic_cast<Plane*>(pObject)) {
                         if (pPlane->getMediaId() == mediaId) {
                             pPlane->setMediaId(-1);

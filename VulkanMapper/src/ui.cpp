@@ -10,15 +10,26 @@ void UI::drawTopBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Exit")) {
-                //glfwSetWindowShouldClose(window, GL_TRUE);
+                glfwSetWindowShouldClose(pWindow, GL_TRUE);
             }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Output")) {
-            bool showOutput = pEngine->getShowOutput();
+            /*bool showOutput = pApp->getShowOutput();
             if (ImGui::MenuItem("Show output window", nullptr, showOutput)) {
-                pEngine->setShowOutput(!showOutput);
+                pApp->setShowOutput(!showOutput);
+            }*/
+            
+            int count;
+            GLFWmonitor** monitors = glfwGetMonitors(&count);
+
+            for (int i = 0; i < count; i++) {
+                if (ImGui::MenuItem(std::string("Monitor " + std::to_string(i) + ": " + glfwGetMonitorName(monitors[i])).c_str(), nullptr, i == pApp->getOutputMonitor())) {
+                    if (pApp->getOutputMonitor() >= 0) pApp->setOutputMonitor(-1);
+                    else pApp->setOutputMonitor(i);
+                }
             }
+
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -26,10 +37,10 @@ void UI::drawTopBar() {
 }
 
 void UI::drawMediaManager() {
-    MediaManager* pMediaManager = pEngine->getMediaManager();
+    MediaManager* pMediaManager = pApp->getMediaManager();
     auto mediasIds = pMediaManager->getMediasIds();
 
-    Scene* pScene = pEngine->getScene();
+    Scene* pScene = pApp->getScene();
 
     int selectedObjId = pScene->getSelectedObjectId();
     Plane* pSelectedPlane = nullptr;
@@ -109,7 +120,7 @@ void UI::drawPropertiesManager() {
         ImGui::Text("Select a media");
     }
     else {
-        Media* pMedia = pEngine->getMediaManager()->getMediaById(selectedMediaId);
+        Media* pMedia = pApp->getMediaManager()->getMediaById(selectedMediaId);
 
         if (pMedia != nullptr) {
             ImGui::Text("File name: %s", pMedia->getFilePath().c_str());
@@ -126,7 +137,7 @@ void UI::drawPropertiesManager() {
 
             ImGui::SeparatorText("Functions");
             if (ImGui::Button("Remove")) {
-                pEngine->getMediaManager()->removeMedia(pMedia->getId());
+                pApp->getMediaManager()->removeMedia(pMedia->getId());
             }
         }
 
@@ -140,7 +151,7 @@ void UI::viewport() {
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
     // render viewport
-    VkDescriptorSet viewportSet = pEngine->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
+    VkDescriptorSet viewportSet = pApp->getVulkanState()->renderViewport(viewportPanelSize.x, viewportPanelSize.y, io.MousePos.x - pos.x, io.MousePos.y - pos.y);
     ImGui::Image(viewportSet, ImVec2(viewportPanelSize.x, viewportPanelSize.y));
 }
 
@@ -193,8 +204,9 @@ void UI::drawVideoProperties(Video* pVideo) {
     }
 }
 
-UI::UI(VulkanState* pEngine) {
-    UI::pEngine = pEngine;
+UI::UI(App* pApp, GLFWwindow* pWindow) {
+    UI::pApp = pApp;
+    UI::pWindow = pWindow;
 }
 
 void UI::drawUi() {
@@ -253,7 +265,7 @@ void UI::deselectMedia() {
 }
 
 void UI::planesMenu() {
-    Scene* pScene = pEngine->getScene();
+    Scene* pScene = pApp->getScene();
 
     ImGui::BeginGroup();
 
@@ -308,7 +320,7 @@ void UI::planesMenu() {
 
     if (ImGui::Button("Add", ImVec2{ ImGui::GetContentRegionAvail().x , 20 })) {
         // TO DO: open file dialog 
-        pScene->addObject(new Plane(pScene, .3f, .3f, 0.0f, 0.0f));
+        pScene->addObject(new Plane(pApp, pScene, .3f, .3f, 0.0f, 0.0f));
     }
 
     ImGui::EndChild();

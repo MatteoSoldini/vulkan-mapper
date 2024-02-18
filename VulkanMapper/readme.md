@@ -1,18 +1,26 @@
 # doing
-- [ ] fullscreen projection window
-	- [ ] single renderer function
-	- [x] implementation
-	- [x] FIXME: closing app with projection window open causes validation error
-	- [ ] test on second monitor
-	- [ ] FIXME: video frames
-- [ ] video decode
+
+# to do
+- FIX: sampled frame seems too bright
+- separate vulkan functions (ex. into VkImgui & VkViewport)
+- FIX: plane move could be more efficient, now is computing homography matrix on single marker move. when moving a plane, all 4 markers gets moved one at a time
+
+# missing features
+- draw screen area to viewport
+- viewport panning/zooming
+- input area for each plane
+- scenes
+- timelines
+
+# done
+- [x] video decode
 	- notes:
 		- [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
 		- dynamic load extensions functions
 			- [reddit comment](https://www.reddit.com/r/vulkan/comments/jeolie/linker_error_using/)
 			- (alternative) [volk](https://github.com/zeux/volk)
 			- using volk
-		- Terminology:
+		- terminology:
 			- gop: group of pictures, streak of related decoded frames generated from a single intra frame at the start
 			- dpb: decoded picture buffer, the buffer of the **currently** active reference frames (predictive or intra)
 	- to do:
@@ -20,11 +28,10 @@
 		- [x] init decode
 		- [x] create textures
 			- [x] fix image view, see wickedengine's implementation
-		- [ ] ycbcr sampler
+		- [x] ycbcr sampler
 			- [maister's graphics adventures blog](https://themaister.net/blog/2019/12/01/yuv-sampling-in-vulkan-a-niche-and-complicated-feature-vk_khr_ycbcr_sampler_conversion/) 
 			- as is, if you want to show video frames through imgui, need to refactor imgui's `ImGui_ImplVulkan_CreateDeviceObjects` by adding pImmutableSampler data (maybe through imgui's initInfo)
 			- [x] working sampler
-			- [ ] FIX: sampled frame seems too bright
 		- [x] decode a frame
 		- [x] video on plane
 		- [x] dpb
@@ -32,24 +39,17 @@
 			- [x] rendering image view should be updated only after decode operation (validator error)
 			- [x] FIX: every loop, the image view gets updated since `decodeFrame` returns the current image view from the dpb every time
 		- [x] multiple video
+- [x] fullscreen projection window
+	- [x] implementation
+	- [x] FIXME: closing app with projection window open causes validation error
+	- [x] FIXME: video frames
+		- ?single renderer function
+			- different renderpasses (imgui, viewport, output)
+		- [x] refactor loadpipelines
+		- [x] remove shared state struct
 - [x] media selection like resolume arena:
 	- 2 buttons, one for plane, one for media selection
-- [ ] media remove
-
-# to do
-- isolate imgui init function in its own class
-- video input implementation (ex. OBS can be used as a source)
-	- OBS can be used to implement scenes & sound
-- plane move could be more efficient, now is computing homography matrix on single marker move, when moving a plane all 4 markers gets moved one at a time
-- scenes
-- timelines
-- input area for each plane
-- viewport panning/zooming
-- draw screen area to viewport
-- draw markers as pixel size (relative to viewport size)
-
-
-# done
+- [x] media remove
 - [x] cmake migration
 - [x] draw imgui
 	- following [this guide](https://frguthmann.github.io/posts/vulkan_imgui/)

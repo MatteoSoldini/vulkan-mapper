@@ -27,7 +27,7 @@ struct DecodeFrameResult {
 
 class VulkanVideo {
 private:
-	VulkanState* pDevice;
+	VulkanState* pVkState;
 
 	VkCommandBuffer commandBuffer;
 

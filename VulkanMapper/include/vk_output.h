@@ -1,8 +1,4 @@
 #pragma once
-
-#ifndef VULKAN_OUTPUT_H
-#define VULKAN_OUTPUT_H
-
 #define NOMINMAX    // To solve the problem caused by the <Windows.h> header file that includes macro definitions named max and min
 
 #include <volk.h>
@@ -13,10 +9,7 @@
 #include <GLFW/glfw3native.h>
 
 #include <vector>
-#include "scene.h"
-#include "vk_state.h"
-
-#endif
+#include "app.h"
 
 struct Pipeline;
 
@@ -26,51 +19,26 @@ struct Scene;
 
 class VulkanState;
 
-struct OutputSharedEngineState {
-	VkInstance instance;
-	VkDevice device;
-	uint32_t graphicsFamily;
-	uint32_t presentFamily;
-	VkQueue graphicsQueue;
-	VkQueue presentQueue;
-	VkPhysicalDevice physicalDevice;
-	VkBuffer vertexBuffer;
-	VkBuffer indexBuffer;
-	std::vector<VmTexture>* pTextures;
-	VkDescriptorSetLayout uniformBufferLayout;
-	VkDescriptorSetLayout textureLayout;
-	Scene* pScene;
-};
+class App;
+
 
 class VulkanOutput {
 public:
-	VulkanOutput(OutputSharedEngineState sharedEngineState, VulkanState* pDevice);
+	VulkanOutput(App* pApp);
 
-	void init() {
-		initWindow();
-		initSurface();
-		initSyncObjects();
-		initCommandPool();
-		initRenderPass();
-		initFrameBuffer();
-		loadPipeline();
-		initUniformBuffer();
-	}
+	void init(int monitorNum);
 
-	void drawFrame();
+	void draw();
 
-	void close();
+	void cleanup();
+
+	int getFramesInFlight() { return MAX_FRAMES_IN_FLIGHT; };
 
 
 private:
-	const uint32_t WIDTH = 1280;
-	const uint32_t HEIGHT = 720;
-
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
-	OutputSharedEngineState sharedEngineState;
-
-	VulkanState* pDevice;
+	App* pApp;
 
 	// surface
 	GLFWwindow* window;
@@ -93,25 +61,26 @@ private:
 
 	// rendering
 	VkRenderPass renderPass;
-	VkPipeline pipeline;
-	VkPipelineLayout pipelineLayout;
+	std::map<std::string, Pipeline> pipelines;
 	std::vector<VkFramebuffer> frameBuffers;
 
-	// uniform buffer
+	// uniform buffer for output mvp matrix
 	std::vector<VkBuffer> uniformBuffers;
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
 	std::vector<void*> uniformBuffersMapped;
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> uniformBufferSets;
 
-	void initWindow();
+	static void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+	void initWindow(GLFWmonitor* monitor);
 	void initSurface();
 	void initSyncObjects();
 	void initCommandPool();
 	void initRenderPass();
 	void initFrameBuffer();
-	void loadPipeline();
-	void initUniformBuffer();
+	void loadPipelines();
+	void initMemory();
 	
 	void recordCommandBuffer(uint32_t imageIndex);
 

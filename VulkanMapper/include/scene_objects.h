@@ -7,15 +7,18 @@
 #include <string>
 #include "media_manager.h"
 #include "vm_types.h"
+#include "app.h"
 
 class Scene;
+
+class App;
+
 
 class Object {
 private:
 	uint8_t id;
 
 public:
-	// pScene
 	uint8_t getId() { return Object::id; };
 	void setId(uint8_t id) {
 		Object::id = id;
@@ -40,6 +43,7 @@ public:
 
 class Plane : public Object {
 private:
+	App* pApp;
 	float pos_x = 0;
 	float pos_y = 0;
 	std::vector<Vertex> vertices;
@@ -50,7 +54,7 @@ private:
 	int mediaId = -1;	// -1 for unset
 
 public:
-	Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
+	Plane(App* pApp, Scene* scene_ptr, float width, float height, float pos_x, float pos_y);
 	
 	Scene* pScene;
 

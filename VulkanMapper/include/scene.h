@@ -5,11 +5,9 @@
 #include <vector>
 #include <memory>
 #include "scene_objects.h"
-#include "vk_state.h"
+#include "app.h"
 
 class Object;
-
-class VulkanState;
 
 class Scene {
 private:
@@ -23,13 +21,10 @@ private:
 
 	std::vector<Object*> pObjects;
 
-	VulkanState* pEngine;
+	App* pApp;
 
 public:
-	Scene(VulkanState* pEngine);
-
-	// TEMP
-	VulkanState* getEngine() { return pEngine; };
+	Scene(App* pApp);
 
 	int getSelectedObjectId() { return selectedObjId; };
 	int getHoveringObjectId() { return hoveringObjId; };

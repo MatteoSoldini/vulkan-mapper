@@ -23,15 +23,18 @@
 #include "../include/vk_video.h"
 
 
-VulkanState::VulkanState() {
+VulkanState::VulkanState(App* pApp) {
+    VulkanState::pApp = pApp;
+
     // init volk
     if (volkInitialize() != VK_SUCCESS) {
         throw std::runtime_error("vulkan loader isn't installed on your system");
     }
+}
 
-    pScene = new Scene(this);
-    pUi = new UI(this);
-    pMediaManager = new MediaManager(this);
+void VulkanState::init() {
+    initWindow();
+    initVulkan();
 }
 
 VkCommandBuffer VulkanState::beginSingleTimeCommands() {
@@ -107,18 +110,18 @@ void VulkanState::framebufferResizeCallback(GLFWwindow* window, int width, int h
     app->framebufferResized = true;
 }
 
-void VulkanState::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+void VulkanState::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
     auto app = reinterpret_cast<VulkanState*>(glfwGetWindowUserPointer(window));
-    app->pScene->mouseButtonCallback(button, action, mods);
+    app->pApp->getScene()->mouseButtonCallback(button, action, mods);
 }
 
 void VulkanState::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // disable OpenGL context
 
-    window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "VulkanMapper", nullptr, nullptr);
 
-    // create pScene
+    // create pApp->getScene()
     std::cout << "init window" << std::endl;
 
     // resize callback
@@ -129,7 +132,9 @@ void VulkanState::initWindow() {
     //glfwSetCursorPosCallback(window, cursor_position_callback);
 
     // mouse button callback
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+
+    pUi = new UI(pApp, window);
 }
 
 
@@ -715,7 +720,7 @@ void VulkanState::createCommandPools() {
     }
 }
 
-void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void VulkanState::renderViewportFrame(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0; // Optional
@@ -762,11 +767,11 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     // looping objects
     std::string lastPipelineName = "";
 
-    auto object_ids = pScene->getIds();
+    auto object_ids = pApp->getScene()->getIds();
     uint32_t indexOffset = 0;
 
     for (auto object_id : object_ids) {
-        auto object = pScene->getObjectPointer(object_id);
+        auto object = pApp->getScene()->getObjectPointer(object_id);
 
         // bind new pipeline if needed
         std::string pipelineName = object->getPipelineName();
@@ -792,7 +797,7 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
             auto pPlane = dynamic_cast<Plane*>(object);
             if (pPlane == nullptr) break;
             
-            Media* pMedia = pMediaManager->getMediaById(pPlane->getMediaId());
+            Media* pMedia = pApp->getMediaManager()->getMediaById(pPlane->getMediaId());
             //if (pMedia->type != MediaType::VIDEO) break;
             
             Video* pVideo =  dynamic_cast<Video*>(pMedia);
@@ -800,7 +805,7 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
             auto& vmVideoFrameStream = vmVideoFrameStreams[pVideo->getVmVideoFrameStreamId()];
 
-            if (vmVideoFrameStream.imageViewsInFlight[currentFrame] != vmVideoFrameStream.frameImageView) {
+            if (vmVideoFrameStream.vpImageViewsInFlight[currentFrame] != vmVideoFrameStream.frameImageView) {
                 VkDescriptorImageInfo imageInfo{};
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 imageInfo.imageView = vmVideoFrameStream.frameImageView;
@@ -808,7 +813,7 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
                 VkWriteDescriptorSet descriptorWrites{};
                 descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrites.dstSet = vmVideoFrameStream.descriptorSetsInFlight[currentFrame];
+                descriptorWrites.dstSet = vmVideoFrameStream.vpDescriptorSetsInFlight[currentFrame];
                 descriptorWrites.dstBinding = 0;
                 descriptorWrites.dstArrayElement = 0;
                 descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -818,10 +823,10 @@ void VulkanState::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
                 vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);   // executed immediately
 
-                vmVideoFrameStream.imageViewsInFlight[currentFrame] = vmVideoFrameStream.frameImageView;
+                vmVideoFrameStream.vpImageViewsInFlight[currentFrame] = vmVideoFrameStream.frameImageView;
             }
             
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &vmVideoFrameStream.descriptorSetsInFlight[currentFrame], 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[pipelineName].pipelineLayout, 1, 1, &vmVideoFrameStream.vpDescriptorSetsInFlight[currentFrame], 0, nullptr);
         }
 
         if (pipelineName == "line") {
@@ -1247,10 +1252,10 @@ void VulkanState::createVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
     
-    auto object_ids = pScene->getIds();
+    auto object_ids = pApp->getScene()->getIds();
 
     for (auto object_id : object_ids) {
-        std::vector<Vertex> obj_vertices = pScene->getObjectPointer(object_id)->getVertices();
+        std::vector<Vertex> obj_vertices = pApp->getScene()->getObjectPointer(object_id)->getVertices();
 
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
@@ -1284,10 +1289,10 @@ void VulkanState::createIndexBuffer() {
     std::vector<uint16_t> indices;
     
     int offset = 0;
-    auto object_ids = pScene->getIds();
+    auto object_ids = pApp->getScene()->getIds();
 
     for (auto object_id : object_ids) {
-        std::vector<uint16_t> obj_indices = pScene->getObjectPointer(object_id)->getIndices();
+        std::vector<uint16_t> obj_indices = pApp->getScene()->getObjectPointer(object_id)->getIndices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1297,7 +1302,7 @@ void VulkanState::createIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += pScene->getObjectPointer(object_id)->getVertices().size();
+        offset += pApp->getScene()->getObjectPointer(object_id)->getVertices().size();
     }
 
     // create buffer
@@ -1559,26 +1564,6 @@ void VulkanState::initVulkan() {
 
     initViewportRender();
     loadPipelines();
-
-    // output window
-    VulkanState::pOutput = new VulkanOutput({
-        instance,
-        device,
-        graphicsFamily.value(),
-        presentFamily.value(),
-        graphicsQueue,
-        presentQueue,
-        physicalDevice,
-        vertexBuffer,
-        indexBuffer,
-        &textures,
-        uniformBufferLayout,
-        textureLayout,
-        pScene,
-    }, this);
-
-    // TEMP
-    //pMediaManager->loadFile("video_test.mp4");
 }
 
 void VulkanState::updateUniformBuffer(uint32_t currentImage) {
@@ -1608,9 +1593,9 @@ void VulkanState::updateVertexBuffer() {
     int vertices_size = 0;
     std::vector<Vertex> vertices;
 
-    auto object_ids = pScene->getIds();
+    auto object_ids = pApp->getScene()->getIds();
     for (auto object_id : object_ids) {
-        std::vector<Vertex> obj_vertices = pScene->getObjectPointer(object_id)->getVertices();
+        std::vector<Vertex> obj_vertices = pApp->getScene()->getObjectPointer(object_id)->getVertices();
 
         vertices_size += obj_vertices.size() * sizeof(obj_vertices[0]);
         vertices.insert(vertices.end(), obj_vertices.begin(), obj_vertices.end());
@@ -1640,9 +1625,9 @@ void VulkanState::updateIndexBuffer() {
     std::vector<uint16_t> indices;
 
     int offset = 0;
-    auto object_ids = pScene->getIds();
+    auto object_ids = pApp->getScene()->getIds();
     for (auto object_id : object_ids) {
-        std::vector<uint16_t> obj_indices = pScene->getObjectPointer(object_id)->getIndices();
+        std::vector<uint16_t> obj_indices = pApp->getScene()->getObjectPointer(object_id)->getIndices();
 
         // sum offset
         for (auto index = obj_indices.begin(); index != obj_indices.end(); index++) {
@@ -1652,7 +1637,7 @@ void VulkanState::updateIndexBuffer() {
         indices_size += obj_indices.size() * sizeof(obj_indices[0]);
         indices.insert(indices.end(), obj_indices.begin(), obj_indices.end());
 
-        offset += pScene->getObjectPointer(object_id)->getVertices().size();
+        offset += pApp->getScene()->getObjectPointer(object_id)->getVertices().size();
     }
 
     if (indices_size == 0) return;
@@ -1747,22 +1732,17 @@ void VulkanState::drawFrame() {
 }
 
 
-void VulkanState::mainLoop() {
-    while (!glfwWindowShouldClose(window)) { // to keep the application running until either an error occurs or the window is closed
-        // window events
-        glfwPollEvents();
-
-        pMediaManager->updateMedia();
-
-        drawFrame();
-
-        // output
-        if (showOutput) {
-            pOutput->drawFrame();
-        }
+void VulkanState::draw() {
+    if (glfwWindowShouldClose(window)) {
+        pApp->setClose();
     }
 
-    vkDeviceWaitIdle(device);
+    // window events
+    glfwPollEvents();
+
+    drawFrame();
+
+    //vkDeviceWaitIdle(device);
 }
 
 void VulkanState::cleanupSwapChain() {
@@ -1780,7 +1760,7 @@ void VulkanState::cleanupSwapChain() {
 }
 
 void VulkanState::cleanup() {
-    pMediaManager->cleanup();
+    vkDeviceWaitIdle(device);
 
     cleanupSwapChain();
 
@@ -2082,6 +2062,21 @@ void VulkanState::imGuiCleanup() {
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
 }
+
+VmTexture* VulkanState::getTexture(VmTextureId_t textureId) {
+    for (auto texture : textures) {
+        if (texture.id == textureId) {
+            return &texture;
+        }
+    }
+
+    return nullptr;
+}
+
+Pipeline VulkanState::getPipeline(std::string pipelineName) {
+    return pipelines[pipelineName];
+}
+
 VmTextureId_t VulkanState::loadTexture(unsigned char* pixels, int width, int height) {
     VkDeviceSize imageSize = width * height * 4;
 
@@ -2187,7 +2182,8 @@ VmVideoFrameStreamId_t VulkanState::createVideoFrameStream() {
     VmVideoFrameStream videoFrameStream = {};
     videoFrameStream.id = newId;
 
-    videoFrameStream.descriptorSetsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
+    videoFrameStream.vpDescriptorSetsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
+
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -2195,16 +2191,40 @@ VmVideoFrameStreamId_t VulkanState::createVideoFrameStream() {
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &videoFrameLayout;
 
-        if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameStream.descriptorSetsInFlight[i]) != VK_SUCCESS) {
+        if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameStream.vpDescriptorSetsInFlight[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate descriptor sets!");
         }
     }
 
-    videoFrameStream.imageViewsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
+    videoFrameStream.outDescriptorSetsInFlight.resize(pApp->getOutput()->getFramesInFlight());
+    for (int i = 0; i < pApp->getOutput()->getFramesInFlight(); i++) {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &videoFrameLayout;
+
+        if (vkAllocateDescriptorSets(device, &allocInfo, &videoFrameStream.outDescriptorSetsInFlight[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+    }
+
+    videoFrameStream.vpImageViewsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
+    videoFrameStream.outImageViewsInFlight.resize(MAX_FRAMES_IN_FLIGHT);
 
     vmVideoFrameStreams.push_back(videoFrameStream);
 
     return newId;
+}
+
+VmVideoFrameStream* VulkanState::getVideoFrameStream(VmVideoFrameStreamId_t streamId) {
+    for (auto& vmVideoFrameStream : vmVideoFrameStreams) {
+        if (vmVideoFrameStream.id == streamId) {
+            return &vmVideoFrameStream;
+        }
+    }
+
+    return nullptr;
 }
 
 void VulkanState::removeVideoFrameStream(VmVideoFrameStreamId_t streamId) {
@@ -2227,21 +2247,6 @@ void VulkanState::loadVideoFrame(VmVideoFrameStreamId_t vmVideoFrameStreamId, Vk
     throw std::runtime_error("vmVideoFrameStream not found!");
 }
 
-bool VulkanState::getShowOutput() {
-    return showOutput;
-}
-
-void VulkanState::setShowOutput(bool showOutput) {
-    VulkanState::showOutput = showOutput;
-    
-    if (showOutput) {
-        pOutput->init();
-    }
-    else {
-        pOutput->close();
-    }
-}
-
 VkDescriptorSet VulkanState::renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY) {
     // pass cursor position to scene
     
@@ -2259,7 +2264,7 @@ VkDescriptorSet VulkanState::renderViewport(uint32_t viewportWidth, uint32_t vie
     glm::vec4 cameraCoords = projInv * clipCoords;
     glm::mat4 viewInv = glm::inverse(glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
     glm::vec4 mouseRay = glm::normalize(cameraCoords * viewInv);
-    pScene->mouseRayCallback(mouseRay);
+    pApp->getScene()->mouseRayCallback(mouseRay);
     
     // resize surfaces before rendering
     if (viewportTextures[currentFrame].width != viewportWidth || viewportTextures[currentFrame].height != viewportHeight) {
@@ -2272,7 +2277,7 @@ VkDescriptorSet VulkanState::renderViewport(uint32_t viewportWidth, uint32_t vie
     updateUniformBuffer(currentFrame);
 
     // render
-    recordCommandBuffer(commandBuffers[currentFrame], currentFrame);
+    renderViewportFrame(commandBuffers[currentFrame], currentFrame);
 
     return viewportTextures[currentFrame].descriptorSet;
 }

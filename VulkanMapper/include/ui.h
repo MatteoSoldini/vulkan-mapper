@@ -3,6 +3,8 @@
 #include "scene.h"
 #include "media_manager.h"
 #include "vm_types.h"
+#include <GLFW/glfw3.h>
+#include "app.h"
 
 class Scene;
 
@@ -12,12 +14,14 @@ struct Video;
 
 class VulkanState;
 
+class App;
+
 class UI {
 private:
+	App* pApp;
 	bool showImGuiDemoWindow = false;
 	
-	VulkanState* pEngine;
-
+	GLFWwindow* pWindow;
 
 	bool selectedMedia = false;
 	MediaId_t selectedMediaId = 0;
@@ -33,7 +37,7 @@ private:
 	void drawVideoProperties(Video* pVideo);
 
 public:
-	UI(VulkanState* pEngine);
+	UI(App* pApp, GLFWwindow* pWindow);
 
 	void drawUi();
 

@@ -5,20 +5,23 @@
 #include "video.h"
 #include "vm_types.h"
 #include "media.h"
+#include "app.h"
 
 class Video;
 
 class VulkanState;
 
+class App;
+
 class MediaManager {
 private:
-	VulkanState* pEngine;
+	App* pApp;
 	std::vector<Media*> medias;
 	MediaId_t newId();
 	std::vector<MediaId_t> toRemove;
 
 public:
-	MediaManager(VulkanState* pEngine);
+	MediaManager(App* pApp);
 
 	void loadFile(std::string filePath);
 	

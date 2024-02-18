@@ -21,11 +21,11 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
     // create command buffer
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = pDevice->getVideoCommandPool();
+    allocInfo.commandPool = pVkState->getVideoCommandPool();
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(pDevice->getDevice(), &allocInfo, &commandBuffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(pVkState->getDevice(), &allocInfo, &commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
@@ -33,12 +33,12 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     //fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(pDevice->getDevice(), &fenceInfo, nullptr, &decodeFence);
+    vkCreateFence(pVkState->getDevice(), &fenceInfo, nullptr, &decodeFence);
 
     // create video session
     VkVideoSessionCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
-    info.queueFamilyIndex = pDevice->getVideoQueueFamilyIndex();
+    info.queueFamilyIndex = pVkState->getVideoQueueFamilyIndex();
     info.maxActiveReferencePictures = pVideoState->numDpbSlots; //numReferenceFrames;
     info.maxDpbSlots = pVideoState->numDpbSlots;
     info.maxCodedExtent.width = std::min(pVideoState->width, videoCapabilities.maxCodedExtent.width);
@@ -48,20 +48,20 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
     info.pVideoProfile = &videoProfile;
     info.pStdHeaderVersion = &videoCapabilities.stdHeaderVersion;
 
-    if (vkCreateVideoSessionKHR(pDevice->getDevice(), &info, nullptr, &videoSession) != VK_SUCCESS) {
+    if (vkCreateVideoSessionKHR(pVkState->getDevice(), &info, nullptr, &videoSession) != VK_SUCCESS) {
         throw std::runtime_error("failed to create video session");
     }
 
     // query memory requirements
     uint32_t requirementsCount = 0;
-    vkGetVideoSessionMemoryRequirementsKHR(pDevice->getDevice(), videoSession, &requirementsCount, nullptr);
+    vkGetVideoSessionMemoryRequirementsKHR(pVkState->getDevice(), videoSession, &requirementsCount, nullptr);
     std::vector<VkVideoSessionMemoryRequirementsKHR> videoSessionRequirements(requirementsCount);
 
     for (auto& videoSessionRequirement : videoSessionRequirements) {
         videoSessionRequirement.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_MEMORY_REQUIREMENTS_KHR;
     }
 
-    if (vkGetVideoSessionMemoryRequirementsKHR(pDevice->getDevice(), videoSession, &requirementsCount, videoSessionRequirements.data()) != VK_SUCCESS) {
+    if (vkGetVideoSessionMemoryRequirementsKHR(pVkState->getDevice(), videoSession, &requirementsCount, videoSessionRequirements.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to get video session memory requirements");
     }
 
@@ -77,11 +77,11 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
         allocInfo.allocationSize = memoryRequirements.size;
 
         allocInfo.memoryTypeIndex = findGenericMemoryType(
-            pDevice->getPhysicalDevice(),
+            pVkState->getPhysicalDevice(),
             memoryRequirements.memoryTypeBits
         );
 
-        if (vkAllocateMemory(pDevice->getDevice(), &allocInfo, nullptr, &videoSessionMemories[i]) != VK_SUCCESS) {
+        if (vkAllocateMemory(pVkState->getDevice(), &allocInfo, nullptr, &videoSessionMemories[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate memory");
         }
 
@@ -93,7 +93,7 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
         bindInfo.memoryOffset = 0;
         bindInfo.memorySize = allocInfo.allocationSize;
 
-        if (vkBindVideoSessionMemoryKHR(pDevice->getDevice(), videoSession, 1, &bindInfo) != VK_SUCCESS) {
+        if (vkBindVideoSessionMemoryKHR(pVkState->getDevice(), videoSession, 1, &bindInfo) != VK_SUCCESS) {
             throw std::runtime_error("failed to bind video session memory");
         }
     }
@@ -118,7 +118,7 @@ void VulkanVideo::createVideoSession(Video* pVideoState) {
     sessionParametersInfo.videoSessionParametersTemplate = VK_NULL_HANDLE;
     sessionParametersInfo.pNext = &sessionParametersInfoH264;
 
-    if (vkCreateVideoSessionParametersKHR(pDevice->getDevice(), &sessionParametersInfo, nullptr, &videoSessionParameters) != VK_SUCCESS) {
+    if (vkCreateVideoSessionParametersKHR(pVkState->getDevice(), &sessionParametersInfo, nullptr, &videoSessionParameters) != VK_SUCCESS) {
         throw std::runtime_error("failed to create video session parameters");
     }
 }
@@ -137,7 +137,7 @@ void VulkanVideo::createDpbTextures(Video* pVideoState) {
     usageFlags |= VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
 
 
-    pDevice->createImage(
+    pVkState->createImage(
         pVideoState->width,
         pVideoState->height,
         pVideoState->numDpbSlots,
@@ -150,11 +150,11 @@ void VulkanVideo::createDpbTextures(Video* pVideoState) {
         &profileListInfo
     );
 
-    pDevice->transitionImageLayout(dpbImage, FRAME_FORMAT, pVideoState->numDpbSlots, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    pVkState->transitionImageLayout(dpbImage, FRAME_FORMAT, pVideoState->numDpbSlots, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // dpb image view
     VkSamplerYcbcrConversionInfo conversionInfo = {};
-    conversionInfo.conversion = pDevice->getYcbcrSamplerConversion();
+    conversionInfo.conversion = pVkState->getYcbcrSamplerConversion();
     conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
     conversionInfo.pNext = nullptr;
 
@@ -173,7 +173,7 @@ void VulkanVideo::createDpbTextures(Video* pVideoState) {
     viewInfo.subresourceRange.layerCount = pVideoState->numDpbSlots;     // the number of array layers (starting from baseArrayLayer) accessible to the view
     viewInfo.pNext = &conversionInfo;
 
-    if (vkCreateImageView(pDevice->getDevice(), &viewInfo, nullptr, &dpbImageView) != VK_SUCCESS) {
+    if (vkCreateImageView(pVkState->getDevice(), &viewInfo, nullptr, &dpbImageView) != VK_SUCCESS) {
         throw std::runtime_error("failed to create texture image view!");
     }
 
@@ -181,7 +181,7 @@ void VulkanVideo::createDpbTextures(Video* pVideoState) {
     decodedImageViews.resize(pVideoState->numDpbSlots);    // resize image view
     for (int i = 0; i < pVideoState->numDpbSlots; i++) {
         VkSamplerYcbcrConversionInfo conversionInfo = {};
-        conversionInfo.conversion = pDevice->getYcbcrSamplerConversion();
+        conversionInfo.conversion = pVkState->getYcbcrSamplerConversion();
         conversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
         conversionInfo.pNext = nullptr;
 
@@ -200,7 +200,7 @@ void VulkanVideo::createDpbTextures(Video* pVideoState) {
         viewInfo.subresourceRange.layerCount = 1;           // the number of array layers (starting from baseArrayLayer) accessible to the view
         viewInfo.pNext = &conversionInfo;
 
-        if (vkCreateImageView(pDevice->getDevice(), &viewInfo, nullptr, &decodedImageViews[i]) != VK_SUCCESS) {
+        if (vkCreateImageView(pVkState->getDevice(), &viewInfo, nullptr, &decodedImageViews[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture image view!");
         }
     }
@@ -370,36 +370,37 @@ DecodeFrameResult* VulkanVideo::decodeFrame(Video* pVideoState) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(pDevice->getVideoQueue(), 1, &submitInfo, decodeFence);
+    vkQueueSubmit(pVkState->getVideoQueue(), 1, &submitInfo, decodeFence);
 
     return new DecodeFrameResult{ decodedImageViews[pVideoState->currentDecodePosition], decodeFence };
 }
 
 VulkanVideo::VulkanVideo(VulkanState* pDevice) {
-    VulkanVideo::pDevice = pDevice;
+    VulkanVideo::pVkState = pDevice;
 }
 
 VulkanVideo::~VulkanVideo() {
+    vkDeviceWaitIdle(pVkState->getDevice());
     // destroy bitstream buffer
-    vkDestroyBuffer(pDevice->getDevice(), videoBitStreamBuffer, nullptr);
-    vkFreeMemory(pDevice->getDevice(), videoBitStreamBufferMemory, nullptr);
+    vkDestroyBuffer(pVkState->getDevice(), videoBitStreamBuffer, nullptr);
+    vkFreeMemory(pVkState->getDevice(), videoBitStreamBufferMemory, nullptr);
 
     // destroy dpb
-    vkDestroyImageView(pDevice->getDevice(), dpbImageView, nullptr);
-    vkDestroyImage(pDevice->getDevice(), dpbImage, nullptr);
-    vkFreeMemory(pDevice->getDevice(), dpbImageMemory, nullptr);
+    vkDestroyImageView(pVkState->getDevice(), dpbImageView, nullptr);
+    vkDestroyImage(pVkState->getDevice(), dpbImage, nullptr);
+    vkFreeMemory(pVkState->getDevice(), dpbImageMemory, nullptr);
     for (auto decodedImageView : decodedImageViews) {
-        vkDestroyImageView(pDevice->getDevice(), decodedImageView, nullptr);
+        vkDestroyImageView(pVkState->getDevice(), decodedImageView, nullptr);
     }
 
     // destroy decode fence
-    vkDestroyFence(pDevice->getDevice(), decodeFence, nullptr);
+    vkDestroyFence(pVkState->getDevice(), decodeFence, nullptr);
 
     // destroy video session
-    vkDestroyVideoSessionParametersKHR(pDevice->getDevice(), videoSessionParameters, nullptr);
-    vkDestroyVideoSessionKHR(pDevice->getDevice(), videoSession, nullptr);
+    vkDestroyVideoSessionParametersKHR(pVkState->getDevice(), videoSessionParameters, nullptr);
+    vkDestroyVideoSessionKHR(pVkState->getDevice(), videoSession, nullptr);
     for (auto videoSessionMemory : videoSessionMemories) {
-        vkFreeMemory(pDevice->getDevice(), videoSessionMemory, nullptr);
+        vkFreeMemory(pVkState->getDevice(), videoSessionMemory, nullptr);
     }
 }
 
@@ -428,7 +429,7 @@ uint64_t VulkanVideo::queryDecodeVideoCapabilities() {
     videoCapabilities.sType = VK_STRUCTURE_TYPE_VIDEO_CAPABILITIES_KHR;
     videoCapabilities.pNext = &decodeCapabilities;
 
-    if (vkGetPhysicalDeviceVideoCapabilitiesKHR(pDevice->getPhysicalDevice(), &videoProfile, &videoCapabilities) != VK_SUCCESS) {
+    if (vkGetPhysicalDeviceVideoCapabilitiesKHR(pVkState->getPhysicalDevice(), &videoProfile, &videoCapabilities) != VK_SUCCESS) {
         throw std::runtime_error("failed to get device video capabilities");
     }
 
@@ -446,9 +447,9 @@ void VulkanVideo::loadVideoStream(uint8_t* dataStream, size_t dataStreamSize) {
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    pDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, nullptr);
+    pVkState->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, nullptr);
 
-    VkDevice device = pDevice->getDevice();
+    VkDevice device = pVkState->getDevice();
 
     // copy stream data
     void* streamData;
@@ -463,7 +464,7 @@ void VulkanVideo::loadVideoStream(uint8_t* dataStream, size_t dataStreamSize) {
     profileList.profileCount = 1;
     profileList.pProfiles = &videoProfile;
 
-    pDevice->createBuffer(
+    pVkState->createBuffer(
         bufferSize,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -472,7 +473,7 @@ void VulkanVideo::loadVideoStream(uint8_t* dataStream, size_t dataStreamSize) {
         &profileList
     );
 
-    pDevice->copyBuffer(stagingBuffer, videoBitStreamBuffer, bufferSize);
+    pVkState->copyBuffer(stagingBuffer, videoBitStreamBuffer, bufferSize);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);

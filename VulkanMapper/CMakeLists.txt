@@ -21,7 +21,7 @@
 	src/vk_video.cpp
 	include/video.h
 	src/video.cpp
- "include/vm_types.h" "include/media.h" "include/image.h" "src/image.cpp")
+ "include/vm_types.h" "include/media.h" "include/image.h" "src/image.cpp"   "include/app.h" "src/app.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET VulkanMapper PROPERTY CXX_STANDARD 20)

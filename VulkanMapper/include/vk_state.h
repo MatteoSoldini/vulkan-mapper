@@ -20,6 +20,7 @@
 #include "vk_output.h"
 #include "vk_utils.h"
 #include "vm_types.h"
+#include "app.h"
 
 struct PipelineToLoad {
     std::string name;
@@ -31,7 +32,6 @@ struct PipelineToLoad {
 
 typedef uint8_t VmTextureId_t;
 
-// runtime object
 struct VmTexture{
     VmTextureId_t id;
     VkImage image;
@@ -42,18 +42,24 @@ struct VmTexture{
     uint32_t height;
 };
 
-// compile time object
 struct Pipeline {
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
 };
 
-// video frames pushed to the engine
+// video frames sync elements for rendering
+// should be created for every video stream
 struct VmVideoFrameStream {
     VmVideoFrameStreamId_t id;
-    VkImageView frameImageView = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSet> descriptorSetsInFlight;
-    std::vector<VkImageView> imageViewsInFlight;    // the current image view corrisponding to the descriptor set
+    VkImageView frameImageView = VK_NULL_HANDLE;            // the current video stream frame
+
+    // viewport
+    std::vector<VkDescriptorSet> vpDescriptorSetsInFlight;  // the viewport's descriptor sets in flight
+    std::vector<VkImageView> vpImageViewsInFlight;          // the current image view corrisponding to the descriptor set
+
+    // output
+    std::vector<VkDescriptorSet> outDescriptorSetsInFlight; // the output's descriptor sets in flight
+    std::vector<VkImageView> outImageViewsInFlight;         // the current image view corrisponding to the descriptor set
 };
 
 class Scene;
@@ -64,18 +70,24 @@ class MediaManager;
 
 class VulkanOutput;
 
-class VulkanState {
-public:
-    VulkanState();
+class App;
 
-    void run() {
-        initWindow();
-        initVulkan();
-        mainLoop();
-        cleanup();
-    }
+class VulkanState {
+private:
+    App* pApp;
+
+public:
+    VulkanState(App* pApp);
+
+    void init();
+
+    void draw();
+
+    void cleanup();
     
 private:
+    UI* pUi;
+    
     // constants
     const uint32_t WIDTH = 1920;
     const uint32_t HEIGHT = 1080;
@@ -174,8 +186,6 @@ private:
     std::vector<VkFramebuffer> imGuiFrameBuffers;
     VkDescriptorPool imguiDescriptorPool;
 
-    UI* pUi;
-
     // syncronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -196,7 +206,7 @@ private:
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
-    static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
     void initWindow();
 
@@ -226,7 +236,7 @@ private:
 
     void createCommandPools();
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void renderViewportFrame(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void createSyncObjects();
 
@@ -258,11 +268,7 @@ private:
 
     void drawFrame();
 
-    void mainLoop();
-
     void cleanupSwapChain();
-
-    void cleanup();
 
     // video frame streams
     std::vector<VmVideoFrameStream> vmVideoFrameStreams;
@@ -276,16 +282,6 @@ private:
 
     // non-vk objects sections
     // TODO: move away from this class
-
-    // scene
-    Scene* pScene;
-
-    // media manager
-    MediaManager* pMediaManager;
-
-    // output
-    VulkanOutput* pOutput;
-    bool showOutput = false;
     
     // imgui
     void initImGui();
@@ -293,30 +289,40 @@ private:
     void recordImGuiCommandBuffer(uint32_t imageIndex);
 
 public:
+    // ----- viewport renderer -----
+    VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
+
+    // ----- vulkan state -----
+    // device
+    VkDevice getDevice() { return device; }
+    
+    // instance
+    VkInstance getInstance() { return instance; };
+    
+    // buffers
+    VkBuffer getVertexBuffer() { return vertexBuffer; };
+    VkBuffer getIndexBuffer() { return indexBuffer; };
+
+    // textures
+    VmTexture* getTexture(VmTextureId_t textureId);
+
+    // descriptor sets layout
+    VkDescriptorSetLayout getUniformBufferLayout() { return uniformBufferLayout; };
+    VkDescriptorSetLayout getVideoFrameLayout() { return videoFrameLayout; };
+
+    // pipelines
+    Pipeline getPipeline(std::string pipelineName);
+    std::vector<PipelineToLoad> getPipelinesToLoad() { return pipelinesToLoad; };
+
     VmTextureId_t loadTexture(unsigned char* pixels, int width, int height);
     void destroyTexture(VmTextureId_t textureId);
 
     // video frame stream
     VmVideoFrameStreamId_t createVideoFrameStream();
+    VmVideoFrameStream* getVideoFrameStream(VmVideoFrameStreamId_t streamId);
     void removeVideoFrameStream(VmVideoFrameStreamId_t streamId);
     void loadVideoFrame(VmVideoFrameStreamId_t vmVideoFrameStreamId, VkImageView videoFrameView);
-
-    // output
-    bool getShowOutput();
-    void setShowOutput(bool showOutput);
-
-    // viewport
-    VkDescriptorSet renderViewport(uint32_t viewportWidth, uint32_t viewportHeight, uint32_t cursorPosX, uint32_t cursorPosY);
     
-    // scene
-    Scene* getScene() { return pScene; }
-
-    // media manager
-    MediaManager* getMediaManager() { return pMediaManager; }
-    
-    // device
-    VkDevice getDevice() { return device; }
-
     // physicalDevice
     VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
 
@@ -325,10 +331,14 @@ public:
     VkCommandPool getVideoCommandPool() { return videoCommandPool; }
 
     // queues
+    VkQueue getGraphicsQueue() { return graphicsQueue; }
+    VkQueue getPresentQueue() { return presentQueue; }
     VkQueue getVideoQueue() { return videoQueue; }
     
     // queue indexes
-    uint32_t getVideoQueueFamilyIndex() { return videoFamily.value(); }
+    uint32_t getGraphicsQueueFamilyIndex() { return graphicsFamily.value(); };
+    uint32_t getPresentQueueFamilyIndex() { return presentFamily.value(); };
+    uint32_t getVideoQueueFamilyIndex() { return videoFamily.value(); };
 
     // image operations
     void createImage(uint32_t width, uint32_t height, uint32_t arrayLayers, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, const void* pNext);

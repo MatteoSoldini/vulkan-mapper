@@ -71,7 +71,8 @@ void Marker::onMove(float deltaX, float deltaY) {
 }
 
 // Plane
-Plane::Plane(Scene* scene_ptr, float width, float height, float pos_x, float pos_y) {
+Plane::Plane(App* pApp, Scene* scene_ptr, float width, float height, float pos_x, float pos_y) {
+    Plane::pApp = pApp;
     const glm::vec3 defaultColor = { 0.5f, 0.5f, 0.5f };
     
     Plane::width = width;
@@ -105,7 +106,7 @@ std::vector<uint16_t> Plane::getIndices() {
 
 std::string Plane::getPipelineName() {
     if (mediaId != -1) {
-        Media* pMedia = pScene->getEngine()->getMediaManager()->getMediaById(mediaId);
+        Media* pMedia = pApp->getMediaManager()->getMediaById(mediaId);
         if (dynamic_cast<Image*>(pMedia) != nullptr) { return "texture"; }
         if (dynamic_cast<Video*>(pMedia) != nullptr) { return "video_frame"; }
     }

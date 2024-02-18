@@ -6,9 +6,8 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-
-Scene::Scene(VulkanState* engine) {
-	Scene::pEngine = engine;
+Scene::Scene(App* pApp) {
+	Scene::pApp = pApp;
 }
 
 uint8_t Scene::addObject(Object* object_ptr) {
