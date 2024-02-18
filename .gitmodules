@@ -10,3 +10,6 @@
 [submodule "VulkanMapper/dependencies/volk"]
 	path = VulkanMapper/dependencies/volk
 	url = https://github.com/zeux/volk.git
+[submodule "VulkanMapper/dependencies/nfd"]
+	path = VulkanMapper/dependencies/nfd
+	url = https://github.com/mlabbe/nativefiledialog.git
