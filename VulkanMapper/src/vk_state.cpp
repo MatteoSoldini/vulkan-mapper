@@ -1971,7 +1971,8 @@ void VulkanState::initImGui() {
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo.Allocator = nullptr;
     initInfo.CheckVkResultFn = nullptr;
-    ImGui_ImplVulkan_Init(&initInfo, imGuiRenderPass);
+    initInfo.RenderPass = imGuiRenderPass;
+    ImGui_ImplVulkan_Init(&initInfo);
         
     // fonts loading
     
