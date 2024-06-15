@@ -1,7 +1,6 @@
 # doing
 
 # to do
-- FIX: sampled frame seems too bright
 - separate vulkan functions (ex. into VkImgui & VkViewport)
 - FIX: plane move could be more efficient, now is computing homography matrix on single marker move. when moving a plane, all 4 markers gets moved one at a time
 
@@ -13,6 +12,7 @@
 - timelines
 
 # done
+- [x] FIX: sampled frame seems too bright
 - [x] video decode
 	- notes:
 		- [wicked engine blog](https://wickedengine.net/2023/05/07/vulkan-video-decoding/)
